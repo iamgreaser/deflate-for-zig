@@ -82,15 +82,7 @@ pub const InputBitStream = struct {
     }
 
     pub fn readType(self: *Self, comptime T: type) !T {
-        comptime const bits = @typeInfo(T).Int.bits;
-
-        var i: u7 = 0;
-        var v: T = 0;
-        while ( i < bits ) : ( i += 1 ) {
-            var bit: u1 = try self.readBit();
-            v |= @intCast(T, @intCast(u64, bit) << @intCast(u6, i));
-        }
-
-        return v;
+        comptime const bits = @intCast(u7, @typeInfo(T).Int.bits);
+        return @intCast(T, try self.readBits(bits));
     }
 };
