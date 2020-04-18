@@ -28,7 +28,7 @@ pub const InputBitStream = struct {
         if ( self.bitsLeft < 8 ) {
             self.bitsLeft = 0;
         } else {
-            return error.failed;
+            return error.Failed;
         }
     }
 
