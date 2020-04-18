@@ -5,9 +5,14 @@ const File = std.fs.File;
 pub const InputBitStream = struct {
     const Self = @This();
 
+    const maxBufferLength = 1024;
+
     stream: File,
-    bitValue: [1]u8 = [1]u8{ 0 },
+    buffer: [maxBufferLength]u8 = [_]u8{0} ** maxBufferLength,
+    bufferLength: usize = 0,
+    bufferOffset: usize = 0,
     bitsLeft: u4 = 0,
+    doneFetch: bool = false,
 
     pub fn wrapStream(stream: File) Self {
         return Self {
@@ -22,7 +27,6 @@ pub const InputBitStream = struct {
     pub fn alignToByte(self: *Self) !void {
         if ( self.bitsLeft < 8 ) {
             self.bitsLeft = 0;
-            self.bitValue[0] = 0;
         } else {
             return error.failed;
         }
@@ -30,13 +34,19 @@ pub const InputBitStream = struct {
 
     pub fn readBit(self: *Self) !u1 {
         if ( self.bitsLeft == 0 ) {
-            var bytes_read = try self.stream.read(&self.bitValue);
-            if ( bytes_read != 1 ) { return error.EndOfFile; }
+            self.bufferOffset += 1;
+            if ( self.bufferOffset >= self.bufferLength ) {
+                self.bufferOffset = 0;
+                self.bufferLength = try self.stream.read(&self.buffer);
+                if ( self.bufferLength == 0 ) {
+                    return error.EndOfFile;
+                }
+            }
             self.bitsLeft = 8;
         }
 
-        var result: u1 = @truncate(u1, self.bitValue[0]);
-        self.bitValue[0] >>= 1;
+        var result: u1 = @truncate(u1, self.buffer[self.bufferOffset]);
+        self.buffer[self.bufferOffset] >>= 1;
         self.bitsLeft -= 1;
         return result;
     }
