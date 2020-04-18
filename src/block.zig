@@ -112,10 +112,7 @@ pub const HuffmanBlock = struct {
                 //warn("copy {} offset {}\n", copyLen, copyDist);
                 //warn("len def v={} base={} len={}\n", v, lenBase[v-257], extraBitsForLen);
 
-                var i: usize = 0;
-                while ( i < copyLen ) : ( i += 1 ) {
-                    try ring.addByte(try ring.getPastByte(copyDist));
-                }
+                try ring.copyPastBytes(copyLen, copyDist);
             } else if ( v == 256 ) {
                 return error.EndOfFile;
             } else {
