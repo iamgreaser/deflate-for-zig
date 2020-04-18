@@ -8,6 +8,8 @@ const CanonicalHuffmanTree = @import("./huffman.zig").CanonicalHuffmanTree;
 const GZipReader = @import("./gzip.zig").GZipReader;
 const InputBitStream = @import("./bitstream.zig").InputBitStream;
 
+var block_buf = [_]u8{0} ** 10240;
+
 pub fn main() anyerror!void {
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
@@ -21,7 +23,6 @@ pub fn main() anyerror!void {
             var readBitStream = InputBitStream.wrapStream(readRawStream);
             var gzip = try GZipReader.readFromBitStream(&readBitStream);
 
-            var block_buf = [_]u8{0} ** 102400;
             var total_bytes_read: usize = 0;
             while ( true ) {
                 var bytes_read = try gzip.read(&block_buf);
