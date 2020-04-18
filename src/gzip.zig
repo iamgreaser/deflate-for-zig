@@ -8,6 +8,28 @@ const RawDeflateReader = @import("./raw_deflate_reader.zig").RawDeflateReader;
 pub const GZipReader = struct {
     const Self = @This();
 
+    const crc32Table: [0x100]u32 = result: {
+        @setEvalBranchQuota(0x1000*8+100);
+        var table = [_]u32{0} ** 256;
+        var i: usize = 0;
+        while ( i < 0x100 ) : ( i += 1 ) {
+            var v: u32 = @intCast(u32, i);
+            var j: usize = 0;
+            while ( j < 8 ) : ( j += 1 ) {
+                if ( (v & 0x1) != 0 ) {
+                    v = (0xEDB88320 ^ (v>>1));
+                } else {
+                    v >>= 1;
+                }
+            }
+            table[i] = v;
+        }
+        break :result table;
+    };
+    crcAccumulated: u32 = 0xFFFFFFFF,
+    bytesAccumulated: usize = 0,
+    didReadFooter: bool = false,
+
     rawDeflateReader: RawDeflateReader,
     readStream: *InputBitStream,
 
@@ -106,14 +128,43 @@ pub const GZipReader = struct {
 
     pub fn read(self: *Self, buffer: []u8) !usize {
         // Read the data
-        var bytes_read = try self.rawDeflateReader.read(buffer);
+        var bytesJustRead = try self.rawDeflateReader.read(buffer);
 
-        // TODO: Process CRC32
+        // Process CRC32
+        {
+            var i: usize = 0;
+            while ( i < bytesJustRead ) : ( i += 1 ) {
+                self.crcAccumulated ^= u32(buffer[i]);
+                self.crcAccumulated = (
+                    ((self.crcAccumulated & 0xFFFFFF00)>>8)
+                    ^ crc32Table[self.crcAccumulated & 0xFF]
+                    );
+            }
+        }
+
+        // Process byte count
+        self.bytesAccumulated += bytesJustRead;
 
         // If we hit stream EOF, read the CRC32 and ISIZE fields
-        if ( bytes_read == 0 ) {
-            // TODO!
+        if ( bytesJustRead == 0 ) {
+            if ( !self.didReadFooter ) {
+                self.didReadFooter = true;
+                try self.readStream.alignToByte();
+                var crcFinished: u32 = self.crcAccumulated ^ 0xFFFFFFFF;
+                var crcExpected: u32 = try self.readStream.readType(u32);
+                var bytesExpected: u32 = try self.readStream.readType(u32);
+
+                if ( crcFinished != crcExpected ) {
+                    warn("CRC mismatch: got {}, expected {}\n", crcFinished, crcExpected);
+                    return error.Failed;
+                }
+
+                if ( self.bytesAccumulated != bytesExpected ) {
+                    warn("Size mismatch: got {}, expected {}\n", self.bytesAccumulated, bytesExpected);
+                    return error.Failed;
+                }
+            }
         }
-        return bytes_read;
+        return bytesJustRead;
     }
 };
