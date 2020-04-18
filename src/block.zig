@@ -8,7 +8,37 @@ const InputBitStream = @import("./bitstream.zig").InputBitStream;
 
 
 pub const RawBlock = struct {
+    const Self = @This();
+
     bytesLeft: u16,
+
+    pub fn fromBitStream(stream: *InputBitStream) !Block {
+        try stream.alignToByte();
+
+        var  len: u16 = try stream.readType(u16);
+        var nlen: u16 = try stream.readType(u16);
+        // Integrity check
+        if ( len != (nlen ^ 0xFFFF) ) {
+            return error.Failed;
+        }
+
+        return Block {
+            .Raw = RawBlock {
+                .bytesLeft = len,
+            }
+        };
+    }
+
+    pub fn readByteFrom(self: *Self, stream: *InputBitStream, ring: *DeflateRing) !u8 {
+        if ( self.bytesLeft >= 1 ) {
+            try ring.addByte(try stream.readType(u8));
+            var byte: u8 = try ring.pullByte();
+            self.bytesLeft -= 1;
+            return byte;
+        } else {
+            return error.EndOfFile;
+        }
+    }
 };
 pub const HuffmanBlock = struct {
     const Self = @This();

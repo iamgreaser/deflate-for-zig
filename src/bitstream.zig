@@ -19,6 +19,15 @@ pub const InputBitStream = struct {
         self.stream.close();
     }
 
+    pub fn alignToByte(self: *Self) !void {
+        if ( self.bitsLeft < 8 ) {
+            self.bitsLeft = 0;
+            self.bitValue[0] = 0;
+        } else {
+            return error.failed;
+        }
+    }
+
     pub fn readBit(self: *Self) !u1 {
         if ( self.bitsLeft == 0 ) {
             var bytes_read = try self.stream.read(&self.bitValue);

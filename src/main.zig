@@ -21,7 +21,7 @@ pub fn main() anyerror!void {
             var readBitStream = InputBitStream.wrapStream(readRawStream);
             var gzip = try GZipReader.readFromBitStream(&readBitStream);
 
-            var block_buf = [_]u8{0} ** 1024;
+            var block_buf = [_]u8{0} ** 102400;
             var total_bytes_read: usize = 0;
             while ( true ) {
                 var bytes_read = try gzip.read(&block_buf);
@@ -30,7 +30,7 @@ pub fn main() anyerror!void {
                 } else {
                     total_bytes_read += usize(bytes_read);
                     warn("read {} bytes for a total of {} bytes\n", bytes_read, total_bytes_read);
-                    warn("contents: [{}]\n", block_buf[0..bytes_read]);
+                    //warn("contents: [{}]\n", block_buf[0..bytes_read]);
                 }
             }
         }

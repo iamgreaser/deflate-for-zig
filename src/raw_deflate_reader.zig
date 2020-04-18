@@ -69,11 +69,7 @@ pub const RawDeflateReader = struct {
             1 => true,
         };
         self.currentBlock = try switch ( btype ) {
-            0 => Block {
-                .Raw = RawBlock {
-                    .bytesLeft = 1,
-                }
-            },
+            0 => RawBlock.fromBitStream(self.readStream),
             1 => Block {
                 .Huffman = HuffmanBlock {
                     .tree = BlockTree.makeStatic(),
@@ -103,6 +99,9 @@ pub const RawDeflateReader = struct {
 
         //
         return switch ( self.currentBlock ) {
+            Block.Raw => self.currentBlock.Raw.readByteFrom(
+                self.readStream,
+                &self.ring),
             Block.Huffman => self.currentBlock.Huffman.readByteFrom(
                 self.readStream,
                 &self.ring),
