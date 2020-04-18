@@ -61,7 +61,7 @@ pub const InputBitStream = struct {
             if ( bitsStillToFetch <= bitsInByte ) {
                 // Yes - grab it and bail out.
                 if ( bitsStillToFetch != 8 ) {
-                    byte &= (u8(1)<<@intCast(u3, bitsStillToFetch))-1;
+                    byte &= (@intCast(u8, 1)<<@intCast(u3, bitsStillToFetch))-1;
                 }
                 v |= @intCast(u64, @intCast(u64, byte) << @intCast(u6, i));
                 i += bitsInByte;

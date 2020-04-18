@@ -35,9 +35,9 @@ pub const BlockTree = struct {
         var rawHclen: u4 = try stream.readType(u4);
 
         // Convert to their real values
-        var realHclen: u5 = u5(rawHclen) + 4;
-        var realHdist: u6 = u6(rawHdist) + 1;
-        var realHlit:  u9 = u9(rawHlit)  + 257;
+        var realHclen: u5 = @intCast(u5, rawHclen) + 4;
+        var realHdist: u6 = @intCast(u6, rawHdist) + 1;
+        var realHlit:  u9 = @intCast(u9, rawHlit)  + 257;
         //warn("HLIT  = {} -> {}\n", rawHlit,  realHlit);
         //warn("HDIST = {} -> {}\n", rawHdist, realHdist);
         //warn("HCLEN = {} -> {}\n", rawHclen, realHclen);
@@ -77,7 +77,7 @@ pub const BlockTree = struct {
                     16 => {
                         // Can't copy a previous value if it's not there
                         if ( i < 1 ) { return error.Failed; }
-                        var times: usize = 3 + usize(try stream.readType(u2));
+                        var times: usize = 3 + @intCast(usize, try stream.readType(u2));
                         var j: usize = 0;
                         while ( j < times ) : ( j += 1 ) {
                             litTable[i] = prev;
@@ -87,7 +87,7 @@ pub const BlockTree = struct {
 
                     // Repeat 0 for 3+u3 times
                     17 => {
-                        var times: usize = 3 + usize(try stream.readType(u3));
+                        var times: usize = 3 + @intCast(usize, try stream.readType(u3));
                         var j: usize = 0;
                         while ( j < times ) : ( j += 1 ) {
                             litTable[i] = 0;
@@ -97,7 +97,7 @@ pub const BlockTree = struct {
 
                     // Repeat 0 for 11+u7 times
                     18 => {
-                        var times: usize = 11 + usize(try stream.readType(u7));
+                        var times: usize = 11 + @intCast(usize, try stream.readType(u7));
                         var j: usize = 0;
                         while ( j < times ) : ( j += 1 ) {
                             litTable[i] = 0;
@@ -133,7 +133,7 @@ pub const BlockTree = struct {
                     16 => {
                         // Can't copy a previous value if it's not there
                         if ( i < 1 ) { return error.Failed; }
-                        var times: usize = 3 + usize(try stream.readType(u2));
+                        var times: usize = 3 + @intCast(usize, try stream.readType(u2));
                         var j: usize = 0;
                         while ( j < times ) : ( j += 1 ) {
                             distTable[i] = prev;
@@ -143,7 +143,7 @@ pub const BlockTree = struct {
 
                     // Repeat 0 for 3+u3 times
                     17 => {
-                        var times: usize = 3 + usize(try stream.readType(u3));
+                        var times: usize = 3 + @intCast(usize, try stream.readType(u3));
                         var j: usize = 0;
                         while ( j < times ) : ( j += 1 ) {
                             distTable[i] = 0;
@@ -153,7 +153,7 @@ pub const BlockTree = struct {
 
                     // Repeat 0 for 11+u7 times
                     18 => {
-                        var times: usize = 11 + usize(try stream.readType(u7));
+                        var times: usize = 11 + @intCast(usize, try stream.readType(u7));
                         var j: usize = 0;
                         while ( j < times ) : ( j += 1 ) {
                             distTable[i] = 0;

@@ -2,7 +2,8 @@
 const std = @import("std");
 const warn = std.debug.warn;
 const File = std.fs.File;
-const allocator = std.heap.direct_allocator;
+const cwd = std.fs.cwd;
+const allocator = std.heap.page_allocator;
 
 const CanonicalHuffmanTree = @import("./huffman.zig").CanonicalHuffmanTree;
 const GZipReader = @import("./gzip.zig").GZipReader;
@@ -16,9 +17,9 @@ pub fn main() anyerror!void {
 
     for (args) |arg, i| {
         if ( i >= 1 ) {
-            warn("arg {} = '{}'\n", i, arg);
+            warn("arg {} = '{}'\n", .{i, arg});
 
-            var readRawStream = try File.openRead(arg);
+            var readRawStream = try cwd().openFile(arg, .{});
             defer readRawStream.close();
             var readBitStream = InputBitStream.wrapStream(readRawStream);
             var gzip = try GZipReader.readFromBitStream(&readBitStream);
@@ -29,9 +30,9 @@ pub fn main() anyerror!void {
                 if ( bytes_read == 0 ) {
                     break;
                 } else {
-                    total_bytes_read += usize(bytes_read);
-                    warn("read {} bytes for a total of {} bytes\n", bytes_read, total_bytes_read);
-                    //warn("contents: [{}]\n", block_buf[0..bytes_read]);
+                    total_bytes_read += @intCast(usize, bytes_read);
+                    warn("read {} bytes for a total of {} bytes\n", .{bytes_read, total_bytes_read});
+                    //warn("contents: [{}]\n", .{block_buf[0..bytes_read]});
                 }
             }
         }

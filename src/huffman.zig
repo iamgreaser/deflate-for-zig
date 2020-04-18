@@ -72,14 +72,14 @@ pub fn CanonicalHuffmanTree(comptime Tlen: type, comptime Tval: type, maxLen: us
             //warn("{} -> {}\n", bitWidth, self.symbolEnds[bitWidth]);
             while ( v >= self.symbolEnds[bitWidth] ) {
                 v <<= 1;
-                v |= usize(try stream.readType(u1));
+                v |= @intCast(usize, try stream.readType(u1));
                 valueOffset = self.symbolEnds[bitWidth]*2;
                 bitWidth += 1;
                 //warn("{}: v={} - {} -> {} (offs={})\n", bitWidth, v, valueOffset, self.symbolEnds[bitWidth], self.symbolOffsets[bitWidth]);
             }
 
             // Find the correct index
-            var idx: Tkey = Tkey((v - valueOffset) + self.symbolOffsets[bitWidth]);
+            var idx: Tkey = @intCast(Tkey, (v - valueOffset) + self.symbolOffsets[bitWidth]);
             //warn("{}\n", idx);
 
             // Now read it

@@ -99,14 +99,14 @@ pub const GZipReader = struct {
         // FNAME if present
         if ( (flags & FNAME) != 0 ) {
             var fname_buf = [_]u8{0} ** 1;
-            warn("original file name: \"");
+            warn("original file name: \"", .{});
             // Skip until NUL
             while ( true ) {
                 fname_buf[0] = try readStream.readType(u8);
                 if ( fname_buf[0] == 0 ) { break; }
-                warn("{}", fname_buf[0..1]);
+                warn("{}", .{fname_buf[0..1]});
             }
-            warn("\"\n");
+            warn("\"\n", .{});
         }
 
         // FCOMMENT if present
@@ -121,7 +121,7 @@ pub const GZipReader = struct {
 
         // FHCRC if present
         if ( (flags & FHCRC) != 0 ) {
-            warn("Has 16-bit header CRC\n");
+            warn("Has 16-bit header CRC\n", .{});
             _ = try readStream.readType(u16);
         }
     }
@@ -134,7 +134,7 @@ pub const GZipReader = struct {
         {
             var i: usize = 0;
             while ( i < bytesJustRead ) : ( i += 1 ) {
-                self.crcAccumulated ^= u32(buffer[i]);
+                self.crcAccumulated ^= @intCast(u32, buffer[i]);
                 self.crcAccumulated = (
                     ((self.crcAccumulated & 0xFFFFFF00)>>8)
                     ^ crc32Table[self.crcAccumulated & 0xFF]
@@ -155,12 +155,12 @@ pub const GZipReader = struct {
                 var bytesExpected: u32 = try self.readStream.readType(u32);
 
                 if ( crcFinished != crcExpected ) {
-                    warn("CRC mismatch: got {}, expected {}\n", crcFinished, crcExpected);
+                    warn("CRC mismatch: got {}, expected {}\n", .{crcFinished, crcExpected});
                     return error.Failed;
                 }
 
                 if ( self.bytesAccumulated != bytesExpected ) {
-                    warn("Size mismatch: got {}, expected {}\n", self.bytesAccumulated, bytesExpected);
+                    warn("Size mismatch: got {}, expected {}\n", .{self.bytesAccumulated, bytesExpected});
                     return error.Failed;
                 }
             }
