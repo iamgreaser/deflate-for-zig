@@ -62,7 +62,7 @@ pub const RawDeflateReader = struct {
         var bfinal: u1 = try self.readStream.readType(u1);
         var btype: u2 = try self.readStream.readType(u2);
 
-        warn("New block: bfinal={}, btype={}\n", bfinal, btype);
+        //warn("New block: bfinal={}, btype={}\n", bfinal, btype);
 
         self.isLastBlock = switch ( bfinal ) {
             0 => false,
