@@ -33,33 +33,52 @@ pub const InputBitStream = struct {
     }
 
     pub fn readBit(self: *Self) !u1 {
-        if ( self.bitsLeft == 0 ) {
-            self.bufferOffset += 1;
-            if ( self.bufferOffset >= self.bufferLength ) {
-                self.bufferOffset = 0;
-                self.bufferLength = try self.stream.read(&self.buffer);
-                if ( self.bufferLength == 0 ) {
-                    return error.EndOfFile;
-                }
-            }
-            self.bitsLeft = 8;
-        }
-
-        var result: u1 = @truncate(u1, self.buffer[self.bufferOffset]);
-        self.buffer[self.bufferOffset] >>= 1;
-        self.bitsLeft -= 1;
-        return result;
+        return @intCast(u1, try self.readBits(1));
     }
 
     pub fn readBits(self: *Self, bits: u7) !u64 {
         var i: u7 = 0;
         var v: u64 = 0;
-        while ( i < bits ) : ( i += 1 ) {
-            var bit: u1 = try self.readBit();
-            v |= @intCast(u64, @intCast(u64, bit) << @intCast(u6, i));
-        }
+        var bitsStillToFetch: u7 = bits;
+        while ( true ) {
+            // If we need to fetch something, do so now.
+            if ( self.bitsLeft == 0 ) {
+                self.bufferOffset += 1;
+                if ( self.bufferOffset >= self.bufferLength ) {
+                    self.bufferOffset = 0;
+                    self.bufferLength = try self.stream.read(&self.buffer);
+                    if ( self.bufferLength == 0 ) {
+                        return error.EndOfFile;
+                    }
+                }
+                self.bitsLeft = 8;
+            }
 
-        return v;
+            var bitsInByte: u4 = self.bitsLeft;
+            var byte: u8 = self.buffer[self.bufferOffset];
+
+            // Do we have enough bits to fill what's left?
+            if ( bitsStillToFetch <= bitsInByte ) {
+                // Yes - grab it and bail out.
+                if ( bitsStillToFetch != 8 ) {
+                    byte &= (u8(1)<<@intCast(u3, bitsStillToFetch))-1;
+                }
+                v |= @intCast(u64, @intCast(u64, byte) << @intCast(u6, i));
+                i += bitsInByte;
+                self.bitsLeft -= @intCast(u4, bitsStillToFetch);
+                if ( bitsStillToFetch != 8 ) {
+                    self.buffer[self.bufferOffset] >>= @intCast(u3, bitsStillToFetch);
+                }
+                return v;
+
+            } else {
+                // No - grab what's left and continue.
+                v |= @intCast(u64, @intCast(u64, byte) << @intCast(u6, i));
+                i += bitsInByte;
+                self.bitsLeft -= bitsInByte;
+                bitsStillToFetch -= bitsInByte;
+            }
+        }
     }
 
     pub fn readType(self: *Self, comptime T: type) !T {
