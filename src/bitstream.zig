@@ -36,24 +36,29 @@ pub const InputBitStream = struct {
         return @intCast(u1, try self.readBits(1));
     }
 
+    fn fetchNextByte(self: *Self) !void {
+        self.bufferOffset += 1;
+        if ( self.bufferOffset >= self.bufferLength ) {
+            self.bufferOffset = 0;
+            self.bufferLength = try self.stream.read(&self.buffer);
+            if ( self.bufferLength == 0 ) {
+                return error.EndOfFile;
+            }
+        }
+        self.bitsLeft = 8;
+    }
+
     pub fn readBits(self: *Self, bits: u7) !u64 {
         var i: u7 = 0;
         var v: u64 = 0;
         var bitsStillToFetch: u7 = bits;
-        while ( true ) {
-            // If we need to fetch something, do so now.
-            if ( self.bitsLeft == 0 ) {
-                self.bufferOffset += 1;
-                if ( self.bufferOffset >= self.bufferLength ) {
-                    self.bufferOffset = 0;
-                    self.bufferLength = try self.stream.read(&self.buffer);
-                    if ( self.bufferLength == 0 ) {
-                        return error.EndOfFile;
-                    }
-                }
-                self.bitsLeft = 8;
-            }
 
+        // If we need to fetch something, do so now.
+        if ( self.bitsLeft == 0 ) {
+            try self.fetchNextByte();
+        }
+
+        while ( true ) {
             var bitsInByte: u4 = self.bitsLeft;
             var byte: u8 = self.buffer[self.bufferOffset];
 
@@ -75,8 +80,10 @@ pub const InputBitStream = struct {
                 // No - grab what's left and continue.
                 v |= @intCast(u64, @intCast(u64, byte) << @intCast(u6, i));
                 i += bitsInByte;
-                self.bitsLeft -= bitsInByte;
                 bitsStillToFetch -= bitsInByte;
+
+                // Fetch the next byte, because it will be needed
+                try self.fetchNextByte();
             }
         }
     }
