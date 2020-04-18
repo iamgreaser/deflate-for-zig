@@ -1,5 +1,6 @@
 // vim: set sts=4 sw=4 et :
 const std = @import("std");
+const Crc32 = std.hash.Crc32;
 const warn = std.debug.warn;
 
 const InputBitStream = @import("./bitstream.zig").InputBitStream;
@@ -26,7 +27,7 @@ pub const GZipReader = struct {
         }
         break :result table;
     };
-    crcAccumulated: u32 = 0xFFFFFFFF,
+    crc: Crc32 = Crc32.init(),
     bytesAccumulated: usize = 0,
     didReadFooter: bool = false,
 
@@ -131,16 +132,7 @@ pub const GZipReader = struct {
         var bytesJustRead = try self.rawDeflateReader.read(buffer);
 
         // Process CRC32
-        {
-            var i: usize = 0;
-            while ( i < bytesJustRead ) : ( i += 1 ) {
-                self.crcAccumulated ^= @intCast(u32, buffer[i]);
-                self.crcAccumulated = (
-                    ((self.crcAccumulated & 0xFFFFFF00)>>8)
-                    ^ crc32Table[self.crcAccumulated & 0xFF]
-                    );
-            }
-        }
+        self.crc.update(buffer[0..bytesJustRead]);
 
         // Process byte count
         self.bytesAccumulated += bytesJustRead;
@@ -150,7 +142,7 @@ pub const GZipReader = struct {
             if ( !self.didReadFooter ) {
                 self.didReadFooter = true;
                 try self.readStream.alignToByte();
-                var crcFinished: u32 = self.crcAccumulated ^ 0xFFFFFFFF;
+                var crcFinished: u32 = self.crc.final();
                 var crcExpected: u32 = try self.readStream.readType(u32);
                 var bytesExpected: u32 = try self.readStream.readType(u32);
 
