@@ -31,7 +31,7 @@ pub const RawDeflateReader = struct {
             var j: usize = 0;
 
             var byte = self.readByte() catch |err| {
-                if ( err == error.EndOfFile ) {
+                if ( err == error.EndOfStream ) {
                     return i;
                 } else {
                     return err;
@@ -46,10 +46,10 @@ pub const RawDeflateReader = struct {
     fn fetchNextBlock(self: *Self) !void {
         //
         if ( self.isLastBlock ) {
-            return error.EndOfFile;
+            return error.EndOfStream;
         } else {
             self.fetchNextBlockUnconditionally() catch |err| {
-                if ( err == error.EndOfFile ) {
+                if ( err == error.EndOfStream ) {
                     return error.Failed;
                 } else {
                     return err;
@@ -59,8 +59,8 @@ pub const RawDeflateReader = struct {
     }
     fn fetchNextBlockUnconditionally(self: *Self) !void {
         // Not EOF, so grab a new block.
-        var bfinal: u1 = try self.readStream.readType(u1);
-        var btype: u2 = try self.readStream.readType(u2);
+        var bfinal: u1 = try self.readStream.readBitsNoEof(u1, 1);
+        var btype: u2 = try self.readStream.readBitsNoEof(u2, 2);
 
         //warn("New block: bfinal={}, btype={}\n", bfinal, btype);
 
@@ -107,7 +107,7 @@ pub const RawDeflateReader = struct {
                 &self.ring),
             else => error.Failed,
         } catch |err| {
-            if ( err == error.EndOfFile ) {
+            if ( err == error.EndOfStream ) {
                 return try self.fetchNextBlockAndByte();
             } else {
                 return err;

@@ -13,10 +13,10 @@ pub const RawBlock = struct {
     bytesLeft: u16,
 
     pub fn fromBitStream(stream: *InputBitStream) !Block {
-        try stream.alignToByte();
+        stream.alignToByte();
 
-        var  len: u16 = try stream.readType(u16);
-        var nlen: u16 = try stream.readType(u16);
+        var  len: u16 = try stream.readBitsNoEof(u16, 16);
+        var nlen: u16 = try stream.readBitsNoEof(u16, 16);
         // Integrity check
         if ( len != (nlen ^ 0xFFFF) ) {
             return error.Failed;
@@ -31,12 +31,12 @@ pub const RawBlock = struct {
 
     pub fn readByteFrom(self: *Self, stream: *InputBitStream, ring: *DeflateRing) !u8 {
         if ( self.bytesLeft >= 1 ) {
-            try ring.addByte(try stream.readType(u8));
+            try ring.addByte(try stream.readBitsNoEof(u8, 8));
             var byte: u8 = try ring.pullByte();
             self.bytesLeft -= 1;
             return byte;
         } else {
-            return error.EndOfFile;
+            return error.EndOfStream;
         }
     }
 };
@@ -103,18 +103,18 @@ pub const HuffmanBlock = struct {
                 try ring.addByte(@intCast(u8, v));
             } else if ( v >= 257 and v <= 285 ) {
                 var extraBitsForLen = lenExtraBits[v-257];
-                var copyLen = lenBase[v-257] + try stream.readBits(extraBitsForLen);
+                var copyLen = lenBase[v-257] + try stream.readBitsNoEof(u5, extraBitsForLen);
 
                 var distOffset: u5 = try self.tree.readDistFrom(stream);
                 var extraBitsForDist = distExtraBits[distOffset];
-                var copyDist = distBase[distOffset] + try stream.readBits(extraBitsForDist);
+                var copyDist = distBase[distOffset] + try stream.readBitsNoEof(u13, extraBitsForDist);
 
                 //warn("copy {} offset {}\n", copyLen, copyDist);
                 //warn("len def v={} base={} len={}\n", v, lenBase[v-257], extraBitsForLen);
 
                 try ring.copyPastBytes(copyLen, copyDist);
             } else if ( v == 256 ) {
-                return error.EndOfFile;
+                return error.EndOfStream;
             } else {
                 return error.Failed;
             }

@@ -30,9 +30,9 @@ pub const BlockTree = struct {
     }
 
     pub fn fromBitStream(stream: *InputBitStream) !BlockTree {
-        var rawHlit:  u5 = try stream.readType(u5);
-        var rawHdist: u5 = try stream.readType(u5);
-        var rawHclen: u4 = try stream.readType(u4);
+        var rawHlit:  u5 = try stream.readBitsNoEof(u5, 5);
+        var rawHdist: u5 = try stream.readBitsNoEof(u5, 5);
+        var rawHclen: u4 = try stream.readBitsNoEof(u4, 4);
 
         // Convert to their real values
         var realHclen: u5 = @intCast(u5, rawHclen) + 4;
@@ -54,7 +54,7 @@ pub const BlockTree = struct {
             var i: u5 = 0;
             while ( i < realHclen ) : ( i += 1 ) {
                 var k: u5 = clenRemap[i];
-                var v: u3 = try stream.readType(u3);
+                var v: u3 = try stream.readBitsNoEof(u3, 3);
                 clenTable[k] = v;
                 //warn("clen {} = {}\n", k, v);
             }
@@ -77,7 +77,7 @@ pub const BlockTree = struct {
                     16 => {
                         // Can't copy a previous value if it's not there
                         if ( i < 1 ) { return error.Failed; }
-                        var times: usize = 3 + @intCast(usize, try stream.readType(u2));
+                        var times: usize = 3 + @intCast(usize, try stream.readBitsNoEof(u2, 2));
                         var j: usize = 0;
                         while ( j < times ) : ( j += 1 ) {
                             litTable[i] = prev;
@@ -87,7 +87,7 @@ pub const BlockTree = struct {
 
                     // Repeat 0 for 3+u3 times
                     17 => {
-                        var times: usize = 3 + @intCast(usize, try stream.readType(u3));
+                        var times: usize = 3 + @intCast(usize, try stream.readBitsNoEof(u3, 3));
                         var j: usize = 0;
                         while ( j < times ) : ( j += 1 ) {
                             litTable[i] = 0;
@@ -97,7 +97,7 @@ pub const BlockTree = struct {
 
                     // Repeat 0 for 11+u7 times
                     18 => {
-                        var times: usize = 11 + @intCast(usize, try stream.readType(u7));
+                        var times: usize = 11 + @intCast(usize, try stream.readBitsNoEof(u7, 7));
                         var j: usize = 0;
                         while ( j < times ) : ( j += 1 ) {
                             litTable[i] = 0;
@@ -133,7 +133,7 @@ pub const BlockTree = struct {
                     16 => {
                         // Can't copy a previous value if it's not there
                         if ( i < 1 ) { return error.Failed; }
-                        var times: usize = 3 + @intCast(usize, try stream.readType(u2));
+                        var times: usize = 3 + @intCast(usize, try stream.readBitsNoEof(u2, 2));
                         var j: usize = 0;
                         while ( j < times ) : ( j += 1 ) {
                             distTable[i] = prev;
@@ -143,7 +143,7 @@ pub const BlockTree = struct {
 
                     // Repeat 0 for 3+u3 times
                     17 => {
-                        var times: usize = 3 + @intCast(usize, try stream.readType(u3));
+                        var times: usize = 3 + @intCast(usize, try stream.readBitsNoEof(u3, 3));
                         var j: usize = 0;
                         while ( j < times ) : ( j += 1 ) {
                             distTable[i] = 0;
@@ -153,7 +153,7 @@ pub const BlockTree = struct {
 
                     // Repeat 0 for 11+u7 times
                     18 => {
-                        var times: usize = 11 + @intCast(usize, try stream.readType(u7));
+                        var times: usize = 11 + @intCast(usize, try stream.readBitsNoEof(u7, 7));
                         var j: usize = 0;
                         while ( j < times ) : ( j += 1 ) {
                             distTable[i] = 0;

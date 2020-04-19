@@ -66,9 +66,9 @@ pub const GZipReader = struct {
         const VALID_FLAGS = FTEXT|FHCRC|FEXTRA|FNAME|FCOMMENT;
 
         // GZip header magic number
-        var magic0: u8 = try readStream.readType(u8);
-        var magic1: u8 = try readStream.readType(u8);
-        var magic2: u8 = try readStream.readType(u8);
+        var magic0: u8 = try readStream.readBitsNoEof(u8, 8);
+        var magic1: u8 = try readStream.readBitsNoEof(u8, 8);
+        var magic2: u8 = try readStream.readBitsNoEof(u8, 8);
         if ( magic0 != 0x1F ) { return error.Failed; }
         if ( magic1 != 0x8B ) { return error.Failed; }
 
@@ -76,24 +76,24 @@ pub const GZipReader = struct {
         if ( magic2 != 0x08 ) { return error.Failed; }
 
         // Flags
-        const flags: u8 = try readStream.readType(u8);
+        const flags: u8 = try readStream.readBitsNoEof(u8, 8);
 
         // Modification time
-        const mtime: u32 = try readStream.readType(u32);
+        const mtime: u32 = try readStream.readBitsNoEof(u32, 32);
 
         // eXtra FLags
-        const xfl: u8 = try readStream.readType(u8);
+        const xfl: u8 = try readStream.readBitsNoEof(u8, 8);
 
         // Operating System used
-        const gzip_os: u8 = try readStream.readType(u8);
+        const gzip_os: u8 = try readStream.readBitsNoEof(u8, 8);
 
         // FEXTRA if present
         if ( (flags & FEXTRA) != 0 ) {
             // TODO: Parse if relevant
-            var fextra_len: u16 = try readStream.readType(u16);
+            var fextra_len: u16 = try readStream.readBitsNoEof(u16, 16);
             var i: usize = 0;
             while ( i < fextra_len ) : ( i += 1 ) {
-                _ = try readStream.readType(u8);
+                _ = try readStream.readBitsNoEof(u8, 8);
             }
         }
 
@@ -103,7 +103,7 @@ pub const GZipReader = struct {
             warn("original file name: \"", .{});
             // Skip until NUL
             while ( true ) {
-                fname_buf[0] = try readStream.readType(u8);
+                fname_buf[0] = try readStream.readBitsNoEof(u8, 8);
                 if ( fname_buf[0] == 0 ) { break; }
                 warn("{}", .{fname_buf[0..1]});
             }
@@ -115,7 +115,7 @@ pub const GZipReader = struct {
             var fcomment_buf = [_]u8{0} ** 1;
             // Skip until NUL
             while ( true ) {
-                fcomment_buf[0] = try readStream.readType(u8);
+                fcomment_buf[0] = try readStream.readBitsNoEof(u8, 8);
                 if ( fcomment_buf[0] == 0 ) { break; }
             }
         }
@@ -123,7 +123,7 @@ pub const GZipReader = struct {
         // FHCRC if present
         if ( (flags & FHCRC) != 0 ) {
             warn("Has 16-bit header CRC\n", .{});
-            _ = try readStream.readType(u16);
+            _ = try readStream.readBitsNoEof(u16, 16);
         }
     }
 
@@ -141,10 +141,10 @@ pub const GZipReader = struct {
         if ( bytesJustRead == 0 ) {
             if ( !self.didReadFooter ) {
                 self.didReadFooter = true;
-                try self.readStream.alignToByte();
+                self.readStream.alignToByte();
                 var crcFinished: u32 = self.crc.final();
-                var crcExpected: u32 = try self.readStream.readType(u32);
-                var bytesExpected: u32 = try self.readStream.readType(u32);
+                var crcExpected: u32 = try self.readStream.readBitsNoEof(u32, 32);
+                var bytesExpected: u32 = try self.readStream.readBitsNoEof(u32, 32);
 
                 if ( crcFinished != crcExpected ) {
                     warn("CRC mismatch: got {}, expected {}\n", .{crcFinished, crcExpected});

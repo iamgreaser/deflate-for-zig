@@ -1,6 +1,7 @@
 // vim: set sts=4 sw=4 et :
 const std = @import("std");
 const warn = std.debug.warn;
+const BitInStream = std.io.BitInStream;
 const File = std.fs.File;
 const cwd = std.fs.cwd;
 const allocator = std.heap.page_allocator;
@@ -21,7 +22,7 @@ pub fn main() anyerror!void {
 
             var readRawStream = try cwd().openFile(arg, .{});
             defer readRawStream.close();
-            var readBitStream = InputBitStream.wrapStream(readRawStream);
+            var readBitStream = InputBitStream.init(readRawStream.inStream());
             var gzip = try GZipReader.readFromBitStream(&readBitStream);
 
             var total_bytes_read: usize = 0;
