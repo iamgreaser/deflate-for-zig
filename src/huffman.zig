@@ -6,7 +6,7 @@ const warn = std.debug.warn;
 
 pub fn CanonicalHuffmanTree(comptime Tlen: type, comptime Tval: type, max_len: usize) type {
     const Tkey: type = usize;
-    const bit_width_count: usize = (1<<@typeInfo(Tlen).Int.bits);
+    const bit_width_count: usize = (1 << @typeInfo(Tlen).Int.bits);
     const Tmask: type = usize;
     return struct {
         const Self = @This();
@@ -35,12 +35,12 @@ pub fn CanonicalHuffmanTree(comptime Tlen: type, comptime Tval: type, max_len: u
             var end_value: usize = 0;
             {
                 var bit_width: usize = 1;
-                while ( bit_width < bit_width_count ) : ( bit_width += 1 ) {
+                while (bit_width < bit_width_count) : (bit_width += 1) {
                     end_value <<= 1;
                     var start_index = nonzero_count;
                     symbol_offsets[bit_width] = start_index;
-                    for ( lengths ) |bw, i| {
-                        if ( bw == bit_width ) {
+                    for (lengths) |bw, i| {
+                        if (bw == bit_width) {
                             //warn("{} entry {} = {}\n", bit_width, nonzero_count, i);
                             symbol_tree[nonzero_count] = @intCast(Tval, i);
                             nonzero_count += 1;
@@ -53,7 +53,7 @@ pub fn CanonicalHuffmanTree(comptime Tlen: type, comptime Tval: type, max_len: u
             }
 
             // Return our tree
-            return Self {
+            return Self{
                 .symbol_count = symbol_count,
                 .symbol_tree_raw = symbol_tree,
                 //.symbol_tree = symbol_tree[0..nonzero_count],
@@ -70,10 +70,10 @@ pub fn CanonicalHuffmanTree(comptime Tlen: type, comptime Tval: type, max_len: u
             var bit_width: usize = 0;
             var value_offset: usize = 0;
             //warn("{} -> {}\n", bit_width, self.symbol_ends[bit_width]);
-            while ( v >= self.symbol_ends[bit_width] ) {
+            while (v >= self.symbol_ends[bit_width]) {
                 v <<= 1;
                 v |= @intCast(usize, try stream.readBitsNoEof(u1, 1));
-                value_offset = self.symbol_ends[bit_width]*2;
+                value_offset = self.symbol_ends[bit_width] * 2;
                 bit_width += 1;
                 //warn("{}: v={} - {} -> {} (offs={})\n", bit_width, v, value_offset, self.symbol_ends[bit_width], self.symbol_offsets[bit_width]);
             }
@@ -88,5 +88,3 @@ pub fn CanonicalHuffmanTree(comptime Tlen: type, comptime Tval: type, max_len: u
         }
     };
 }
-
-

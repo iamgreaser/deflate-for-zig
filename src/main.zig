@@ -20,13 +20,13 @@ pub fn main() anyerror!void {
     defer std.process.argsFree(allocator, args);
 
     for (args) |arg, i| {
-        if ( i >= 1 ) {
-            warn("arg {} = '{}'\n", .{i, arg});
+        if (i >= 1) {
+            warn("arg {} = '{}'\n", .{ i, arg });
 
             var read_raw_file = try cwd().openFile(arg, .{});
             defer read_raw_file.close();
             var read_raw_stream = read_raw_file.inStream();
-            var read_buffered = InputBitStreamBacking {
+            var read_buffered = InputBitStreamBacking{
                 .unbuffered_in_stream = read_raw_stream,
             }; // TODO: find or propose a cleaner way to build a BufferedInStream --GM
             var read_buffered_stream = read_buffered.inStream();
@@ -34,13 +34,13 @@ pub fn main() anyerror!void {
             var gzip = try GZipReader.readFromBitStream(&read_bit_stream);
 
             var total_bytes_read: usize = 0;
-            while ( true ) {
+            while (true) {
                 var bytes_read = try gzip.read(&block_buf);
-                if ( bytes_read == 0 ) {
+                if (bytes_read == 0) {
                     break;
                 } else {
                     total_bytes_read += @intCast(usize, bytes_read);
-                    warn("read {} bytes for a total of {} bytes\n", .{bytes_read, total_bytes_read});
+                    warn("read {} bytes for a total of {} bytes\n", .{ bytes_read, total_bytes_read });
                     //warn("contents: [{}]\n", .{block_buf[0..bytes_read]});
                 }
             }

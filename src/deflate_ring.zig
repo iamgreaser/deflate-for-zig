@@ -2,7 +2,6 @@
 const std = @import("std");
 const warn = std.debug.warn;
 
-
 pub const DeflateRing = struct {
     const Self = @This();
 
@@ -16,7 +15,7 @@ pub const DeflateRing = struct {
 
     pub fn addByte(self: *Self, byte: u8) !void {
         // Check...
-        if ( self.ring_amount_to_read >= RING_LENGTH ) {
+        if (self.ring_amount_to_read >= RING_LENGTH) {
             // Overflow!
             return error.Failed;
         }
@@ -31,17 +30,17 @@ pub const DeflateRing = struct {
     pub fn copyPastBytes(self: *Self, copy_len: usize, copy_dist: usize) !void {
         // Guard against trying to read back through the window
         //warn("distance {} vs {}\n", distance, self.ring_amount_written);
-        if ( copy_dist > self.ring_amount_written ) {
+        if (copy_dist > self.ring_amount_written) {
             return error.Failed;
         }
 
         // Also, 0 is not a valid distance
-        if ( copy_dist < 1 ) {
+        if (copy_dist < 1) {
             return error.Failed;
         }
 
         // Check ahead of time
-        if ( self.ring_amount_to_read + copy_len > RING_LENGTH ) {
+        if (self.ring_amount_to_read + copy_len > RING_LENGTH) {
             // Overflow!
             return error.Failed;
         }
@@ -50,7 +49,7 @@ pub const DeflateRing = struct {
         {
             var i: usize = 0;
             var idx = ((self.ring_write_index + RING_LENGTH) - copy_dist) % RING_LENGTH;
-            while ( i < copy_len ) : ( i += 1 ) {
+            while (i < copy_len) : (i += 1) {
                 self.ring_entries[self.ring_write_index] = self.ring_entries[idx];
                 idx = (idx + 1) % RING_LENGTH;
                 self.ring_write_index = (self.ring_write_index + 1) % RING_LENGTH;
@@ -60,7 +59,7 @@ pub const DeflateRing = struct {
         }
 
         // Sanity check
-        if ( self.ring_amount_to_read > RING_LENGTH ) {
+        if (self.ring_amount_to_read > RING_LENGTH) {
             // Overflow!
             return error.Failed;
         }
@@ -68,7 +67,7 @@ pub const DeflateRing = struct {
 
     pub fn pullByte(self: *Self) !u8 {
         // We need to actually have something to read here
-        if ( self.isEmpty() ) {
+        if (self.isEmpty()) {
             return error.Failed;
         }
 
@@ -80,8 +79,6 @@ pub const DeflateRing = struct {
     }
 
     pub fn isEmpty(self: *Self) bool {
-        return ( self.ring_amount_to_read < 1 );
+        return (self.ring_amount_to_read < 1);
     }
 };
-
-
