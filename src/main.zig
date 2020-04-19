@@ -2,6 +2,8 @@
 const std = @import("std");
 const warn = std.debug.warn;
 const BitInStream = std.io.BitInStream;
+const BufferedInStream = std.io.BufferedInStream;
+const bufferedInStream = std.io.bufferedInStream;
 const File = std.fs.File;
 const cwd = std.fs.cwd;
 const allocator = std.heap.page_allocator;
@@ -9,6 +11,7 @@ const allocator = std.heap.page_allocator;
 const CanonicalHuffmanTree = @import("./huffman.zig").CanonicalHuffmanTree;
 const GZipReader = @import("./gzip.zig").GZipReader;
 const InputBitStream = @import("./bitstream.zig").InputBitStream;
+const InputBitStreamBacking = @import("./bitstream.zig").InputBitStreamBacking;
 
 var block_buf = [_]u8{0} ** 10240;
 
@@ -20,9 +23,14 @@ pub fn main() anyerror!void {
         if ( i >= 1 ) {
             warn("arg {} = '{}'\n", .{i, arg});
 
-            var readRawStream = try cwd().openFile(arg, .{});
-            defer readRawStream.close();
-            var readBitStream = InputBitStream.init(readRawStream.inStream());
+            var readRawFile = try cwd().openFile(arg, .{});
+            defer readRawFile.close();
+            var readRawStream = readRawFile.inStream();
+            var readBuffered = InputBitStreamBacking {
+                .unbuffered_in_stream = readRawStream,
+            }; // TODO: find or propose a cleaner way to build a BufferedInStream --GM
+            var readBufferedStream = readBuffered.inStream();
+            var readBitStream = InputBitStream.init(readBufferedStream);
             var gzip = try GZipReader.readFromBitStream(&readBitStream);
 
             var total_bytes_read: usize = 0;
