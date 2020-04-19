@@ -8,40 +8,40 @@ pub const DeflateRing = struct {
 
     const RING_LENGTH = 32 * 1024;
 
-    ringEntries: [RING_LENGTH]u8 = [_]u8{0} ** RING_LENGTH,
-    ringReadIndex: usize = 0,
-    ringWriteIndex: usize = 0,
-    ringAmountToRead: usize = 0,
-    ringAmountWritten: usize = 0,
+    ring_entries: [RING_LENGTH]u8 = [_]u8{0} ** RING_LENGTH,
+    ring_read_index: usize = 0,
+    ring_write_index: usize = 0,
+    ring_amount_to_read: usize = 0,
+    ring_amount_written: usize = 0,
 
     pub fn addByte(self: *Self, byte: u8) !void {
         // Check...
-        if ( self.ringAmountToRead >= RING_LENGTH ) {
+        if ( self.ring_amount_to_read >= RING_LENGTH ) {
             // Overflow!
             return error.Failed;
         }
 
         // OK, add it!
-        self.ringEntries[self.ringWriteIndex] = byte;
-        self.ringWriteIndex = (self.ringWriteIndex + 1) % RING_LENGTH;
-        self.ringAmountToRead += 1;
-        self.ringAmountWritten += 1;
+        self.ring_entries[self.ring_write_index] = byte;
+        self.ring_write_index = (self.ring_write_index + 1) % RING_LENGTH;
+        self.ring_amount_to_read += 1;
+        self.ring_amount_written += 1;
     }
 
-    pub fn copyPastBytes(self: *Self, copyLen: usize, copyDist: usize) !void {
+    pub fn copyPastBytes(self: *Self, copy_len: usize, copy_dist: usize) !void {
         // Guard against trying to read back through the window
-        //warn("distance {} vs {}\n", distance, self.ringAmountWritten);
-        if ( copyDist > self.ringAmountWritten ) {
+        //warn("distance {} vs {}\n", distance, self.ring_amount_written);
+        if ( copy_dist > self.ring_amount_written ) {
             return error.Failed;
         }
 
         // Also, 0 is not a valid distance
-        if ( copyDist < 1 ) {
+        if ( copy_dist < 1 ) {
             return error.Failed;
         }
 
         // Check ahead of time
-        if ( self.ringAmountToRead + copyLen > RING_LENGTH ) {
+        if ( self.ring_amount_to_read + copy_len > RING_LENGTH ) {
             // Overflow!
             return error.Failed;
         }
@@ -49,18 +49,18 @@ pub const DeflateRing = struct {
         // Copy bytes
         {
             var i: usize = 0;
-            var idx = ((self.ringWriteIndex + RING_LENGTH) - copyDist) % RING_LENGTH;
-            while ( i < copyLen ) : ( i += 1 ) {
-                self.ringEntries[self.ringWriteIndex] = self.ringEntries[idx];
+            var idx = ((self.ring_write_index + RING_LENGTH) - copy_dist) % RING_LENGTH;
+            while ( i < copy_len ) : ( i += 1 ) {
+                self.ring_entries[self.ring_write_index] = self.ring_entries[idx];
                 idx = (idx + 1) % RING_LENGTH;
-                self.ringWriteIndex = (self.ringWriteIndex + 1) % RING_LENGTH;
+                self.ring_write_index = (self.ring_write_index + 1) % RING_LENGTH;
             }
-            self.ringAmountToRead += copyLen;
-            self.ringAmountWritten += copyLen;
+            self.ring_amount_to_read += copy_len;
+            self.ring_amount_written += copy_len;
         }
 
         // Sanity check
-        if ( self.ringAmountToRead > RING_LENGTH ) {
+        if ( self.ring_amount_to_read > RING_LENGTH ) {
             // Overflow!
             return error.Failed;
         }
@@ -72,15 +72,15 @@ pub const DeflateRing = struct {
             return error.Failed;
         }
 
-        var byte: u8 = self.ringEntries[self.ringReadIndex];
-        self.ringReadIndex = (self.ringReadIndex + 1) % RING_LENGTH;
-        self.ringAmountToRead -= 1;
+        var byte: u8 = self.ring_entries[self.ring_read_index];
+        self.ring_read_index = (self.ring_read_index + 1) % RING_LENGTH;
+        self.ring_amount_to_read -= 1;
 
         return byte;
     }
 
     pub fn isEmpty(self: *Self) bool {
-        return ( self.ringAmountToRead < 1 );
+        return ( self.ring_amount_to_read < 1 );
     }
 };
 

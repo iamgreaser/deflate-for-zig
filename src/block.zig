@@ -10,7 +10,7 @@ const InputBitStream = @import("./bitstream.zig").InputBitStream;
 pub const RawBlock = struct {
     const Self = @This();
 
-    bytesLeft: u16,
+    bytes_left: u16,
 
     pub fn fromBitStream(stream: *InputBitStream) !Block {
         stream.alignToByte();
@@ -24,16 +24,16 @@ pub const RawBlock = struct {
 
         return Block {
             .Raw = RawBlock {
-                .bytesLeft = len,
+                .bytes_left = len,
             }
         };
     }
 
     pub fn readByteFrom(self: *Self, stream: *InputBitStream, ring: *DeflateRing) !u8 {
-        if ( self.bytesLeft >= 1 ) {
+        if ( self.bytes_left >= 1 ) {
             try ring.addByte(try stream.readBitsNoEof(u8, 8));
             var byte: u8 = try ring.pullByte();
-            self.bytesLeft -= 1;
+            self.bytes_left -= 1;
             return byte;
         } else {
             return error.EndOfStream;
@@ -43,7 +43,7 @@ pub const RawBlock = struct {
 pub const HuffmanBlock = struct {
     const Self = @This();
 
-    const lenExtraBits = result: {
+    const len_extra_bits_table = result: {
         var table = [_]u3{0} ** 29;
         var i: usize = 4;
         while ( i < table.len-1 ) : ( i += 1 ) {
@@ -54,12 +54,12 @@ pub const HuffmanBlock = struct {
         break :result table;
     };
 
-    const lenBase = result: {
+    const len_base_table = result: {
         var table = [_]u9{0} ** 29;
         var i: usize = 0;
         var v: u9 = 3;
         while ( i < table.len ) : ( i += 1 ) {
-            var bits = lenExtraBits[i];
+            var bits = len_extra_bits_table[i];
             table[i] = @intCast(u9, v);
             v += (1<<bits);
             // The second-to-last case is kinda weird.
@@ -69,7 +69,7 @@ pub const HuffmanBlock = struct {
         break :result table;
     };
 
-    const distExtraBits = result: {
+    const dist_extra_bits_table = result: {
         var table = [_]u4{0} ** 30;
         var i: usize = 2;
         while ( i < table.len ) : ( i += 1 ) {
@@ -79,12 +79,12 @@ pub const HuffmanBlock = struct {
         break :result table;
     };
 
-    const distBase = result: {
+    const dist_base_table = result: {
         var table = [_]u16{0} ** 30;
         var i: usize = 0;
         var v: u16 = 1;
         while ( i < table.len ) : ( i += 1 ) {
-            var bits = distExtraBits[i];
+            var bits = dist_extra_bits_table[i];
             table[i] = @intCast(u16, v);
             v += (1<<bits);
         }
@@ -102,17 +102,17 @@ pub const HuffmanBlock = struct {
             if ( v >= 0 and v <= 255 ) {
                 try ring.addByte(@intCast(u8, v));
             } else if ( v >= 257 and v <= 285 ) {
-                var extraBitsForLen = lenExtraBits[v-257];
-                var copyLen = lenBase[v-257] + try stream.readBitsNoEof(u5, extraBitsForLen);
+                var extra_bits_for_len = len_extra_bits_table[v-257];
+                var copy_len = len_base_table[v-257] + try stream.readBitsNoEof(u5, extra_bits_for_len);
 
-                var distOffset: u5 = try self.tree.readDistFrom(stream);
-                var extraBitsForDist = distExtraBits[distOffset];
-                var copyDist = distBase[distOffset] + try stream.readBitsNoEof(u13, extraBitsForDist);
+                var dist_offset: u5 = try self.tree.readDistFrom(stream);
+                var extra_bits_for_dist = dist_extra_bits_table[dist_offset];
+                var copy_dist = dist_base_table[dist_offset] + try stream.readBitsNoEof(u13, extra_bits_for_dist);
 
-                //warn("copy {} offset {}\n", copyLen, copyDist);
-                //warn("len def v={} base={} len={}\n", v, lenBase[v-257], extraBitsForLen);
+                //warn("copy {} offset {}\n", copy_len, copy_dist);
+                //warn("len def v={} base={} len={}\n", v, len_base_table[v-257], extra_bits_for_len);
 
-                try ring.copyPastBytes(copyLen, copyDist);
+                try ring.copyPastBytes(copy_len, copy_dist);
             } else if ( v == 256 ) {
                 return error.EndOfStream;
             } else {

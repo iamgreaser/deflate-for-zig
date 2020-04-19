@@ -23,15 +23,15 @@ pub fn main() anyerror!void {
         if ( i >= 1 ) {
             warn("arg {} = '{}'\n", .{i, arg});
 
-            var readRawFile = try cwd().openFile(arg, .{});
-            defer readRawFile.close();
-            var readRawStream = readRawFile.inStream();
-            var readBuffered = InputBitStreamBacking {
-                .unbuffered_in_stream = readRawStream,
+            var read_raw_file = try cwd().openFile(arg, .{});
+            defer read_raw_file.close();
+            var read_raw_stream = read_raw_file.inStream();
+            var read_buffered = InputBitStreamBacking {
+                .unbuffered_in_stream = read_raw_stream,
             }; // TODO: find or propose a cleaner way to build a BufferedInStream --GM
-            var readBufferedStream = readBuffered.inStream();
-            var readBitStream = InputBitStream.init(readBufferedStream);
-            var gzip = try GZipReader.readFromBitStream(&readBitStream);
+            var read_buffered_stream = read_buffered.inStream();
+            var read_bit_stream = InputBitStream.init(read_buffered_stream);
+            var gzip = try GZipReader.readFromBitStream(&read_bit_stream);
 
             var total_bytes_read: usize = 0;
             while ( true ) {

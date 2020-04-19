@@ -9,41 +9,41 @@ const InputBitStream = @import("./bitstream.zig").InputBitStream;
 pub const BlockTree = struct {
     const Self = @This();
 
-    litTree: CanonicalHuffmanTree(u4, u9, 31+257),
-    distTree: CanonicalHuffmanTree(u4, u5, 31+1),
+    lit_tree: CanonicalHuffmanTree(u4, u9, 31+257),
+    dist_tree: CanonicalHuffmanTree(u4, u5, 31+1),
 
     pub fn makeStatic() BlockTree {
-        const litTable = (
+        const lit_table = (
                ([_]u4{8} ** (144-  0))
             ++ ([_]u4{9} ** (256-144))
             ++ ([_]u4{7} ** (280-256))
             ++ ([_]u4{8} ** (288-280)));
-        var litTree = CanonicalHuffmanTree(u4, u9, 31+257).fromLengths(&litTable);
+        var lit_tree = CanonicalHuffmanTree(u4, u9, 31+257).fromLengths(&lit_table);
 
-        const distTable = [_]u4{5} ** 32;
-        var distTree = CanonicalHuffmanTree(u4, u5, 31+1).fromLengths(&distTable);
+        const dist_table = [_]u4{5} ** 32;
+        var dist_tree = CanonicalHuffmanTree(u4, u5, 31+1).fromLengths(&dist_table);
 
         return BlockTree {
-            .litTree = litTree,
-            .distTree = distTree,
+            .lit_tree = lit_tree,
+            .dist_tree = dist_tree,
         };
     }
 
     pub fn fromBitStream(stream: *InputBitStream) !BlockTree {
-        var rawHlit:  u5 = try stream.readBitsNoEof(u5, 5);
-        var rawHdist: u5 = try stream.readBitsNoEof(u5, 5);
-        var rawHclen: u4 = try stream.readBitsNoEof(u4, 4);
+        var raw_hlit:  u5 = try stream.readBitsNoEof(u5, 5);
+        var raw_hdist: u5 = try stream.readBitsNoEof(u5, 5);
+        var raw_hclen: u4 = try stream.readBitsNoEof(u4, 4);
 
         // Convert to their real values
-        var realHclen: u5 = @intCast(u5, rawHclen) + 4;
-        var realHdist: u6 = @intCast(u6, rawHdist) + 1;
-        var realHlit:  u9 = @intCast(u9, rawHlit)  + 257;
-        //warn("HLIT  = {} -> {}\n", rawHlit,  realHlit);
-        //warn("HDIST = {} -> {}\n", rawHdist, realHdist);
-        //warn("HCLEN = {} -> {}\n", rawHclen, realHclen);
+        var real_hclen: u5 = @intCast(u5, raw_hclen) + 4;
+        var real_hdist: u6 = @intCast(u6, raw_hdist) + 1;
+        var real_hlit:  u9 = @intCast(u9, raw_hlit)  + 257;
+        //warn("HLIT  = {} -> {}\n", raw_hlit,  real_hlit);
+        //warn("HDIST = {} -> {}\n", raw_hdist, real_hdist);
+        //warn("HCLEN = {} -> {}\n", raw_hclen, real_hclen);
 
-        var clenTable: [15+4]u3 = [_]u3{0} ** (15+4);
-        const clenRemap: [15+4]u5 = [_]u5{
+        var clen_table: [15+4]u3 = [_]u3{0} ** (15+4);
+        const clen_remap: [15+4]u5 = [_]u5{
             16, 17, 18, 0, 8,
             7, 9, 6, 10, 5, 11, 4, 12,
             3, 13, 2, 14, 1, 15,
@@ -52,24 +52,24 @@ pub const BlockTree = struct {
         // Parse the code length table
         {
             var i: u5 = 0;
-            while ( i < realHclen ) : ( i += 1 ) {
-                var k: u5 = clenRemap[i];
+            while ( i < real_hclen ) : ( i += 1 ) {
+                var k: u5 = clen_remap[i];
                 var v: u3 = try stream.readBitsNoEof(u3, 3);
-                clenTable[k] = v;
+                clen_table[k] = v;
                 //warn("clen {} = {}\n", k, v);
             }
         }
 
         // Build a canonical huffman tree
-        var clenTree = CanonicalHuffmanTree(u3, u5, 15+4).fromLengths(&clenTable);
+        var clen_tree = CanonicalHuffmanTree(u3, u5, 15+4).fromLengths(&clen_table);
 
         // Read literal tree
-        var litTable: [31+257]u4 = [_]u4{0} ** (31+257);
+        var lit_table: [31+257]u4 = [_]u4{0} ** (31+257);
         {
             var i: u9 = 0;
             var prev: u4 = undefined;
-            while ( i < realHlit ) {
-                var v: u5 = try clenTree.readFrom(stream);
+            while ( i < real_hlit ) {
+                var v: u5 = try clen_tree.readFrom(stream);
                 //warn("hlit {} = {}\n", i, v);
 
                 switch ( v ) {
@@ -80,7 +80,7 @@ pub const BlockTree = struct {
                         var times: usize = 3 + @intCast(usize, try stream.readBitsNoEof(u2, 2));
                         var j: usize = 0;
                         while ( j < times ) : ( j += 1 ) {
-                            litTable[i] = prev;
+                            lit_table[i] = prev;
                             i += 1;
                         }
                     },
@@ -90,7 +90,7 @@ pub const BlockTree = struct {
                         var times: usize = 3 + @intCast(usize, try stream.readBitsNoEof(u3, 3));
                         var j: usize = 0;
                         while ( j < times ) : ( j += 1 ) {
-                            litTable[i] = 0;
+                            lit_table[i] = 0;
                             i += 1;
                         }
                     },
@@ -100,14 +100,14 @@ pub const BlockTree = struct {
                         var times: usize = 11 + @intCast(usize, try stream.readBitsNoEof(u7, 7));
                         var j: usize = 0;
                         while ( j < times ) : ( j += 1 ) {
-                            litTable[i] = 0;
+                            lit_table[i] = 0;
                             i += 1;
                         }
                     },
 
                     else => {
                         prev = @intCast(u4, v);
-                        litTable[i] = prev;
+                        lit_table[i] = prev;
                         i += 1;
                     },
                 }
@@ -115,17 +115,17 @@ pub const BlockTree = struct {
         }
 
         // Build another canonical huffman tree
-        var litTree = CanonicalHuffmanTree(u4, u9, 31+257).fromLengths(&litTable);
+        var lit_tree = CanonicalHuffmanTree(u4, u9, 31+257).fromLengths(&lit_table);
 
         // TODO: NOT COPY-PASTE THE ABOVE
 
         // Read distance tree
-        var distTable: [31+1]u4 = [_]u4{0} ** (31+1);
+        var dist_table: [31+1]u4 = [_]u4{0} ** (31+1);
         {
             var i: u6 = 0;
             var prev: u4 = undefined;
-            while ( i < realHdist ) {
-                var v: u5 = try clenTree.readFrom(stream);
+            while ( i < real_hdist ) {
+                var v: u5 = try clen_tree.readFrom(stream);
                 //warn("hdist {} = {}\n", i, v);
 
                 switch ( v ) {
@@ -136,7 +136,7 @@ pub const BlockTree = struct {
                         var times: usize = 3 + @intCast(usize, try stream.readBitsNoEof(u2, 2));
                         var j: usize = 0;
                         while ( j < times ) : ( j += 1 ) {
-                            distTable[i] = prev;
+                            dist_table[i] = prev;
                             i += 1;
                         }
                     },
@@ -146,7 +146,7 @@ pub const BlockTree = struct {
                         var times: usize = 3 + @intCast(usize, try stream.readBitsNoEof(u3, 3));
                         var j: usize = 0;
                         while ( j < times ) : ( j += 1 ) {
-                            distTable[i] = 0;
+                            dist_table[i] = 0;
                             i += 1;
                         }
                     },
@@ -156,14 +156,14 @@ pub const BlockTree = struct {
                         var times: usize = 11 + @intCast(usize, try stream.readBitsNoEof(u7, 7));
                         var j: usize = 0;
                         while ( j < times ) : ( j += 1 ) {
-                            distTable[i] = 0;
+                            dist_table[i] = 0;
                             i += 1;
                         }
                     },
 
                     else => {
                         prev = @intCast(u4, v);
-                        distTable[i] = prev;
+                        dist_table[i] = prev;
                         i += 1;
                     },
                 }
@@ -171,20 +171,20 @@ pub const BlockTree = struct {
         }
 
         // Build another canonical huffman tree
-        var distTree = CanonicalHuffmanTree(u4, u5, 31+1).fromLengths(&distTable);
+        var dist_tree = CanonicalHuffmanTree(u4, u5, 31+1).fromLengths(&dist_table);
 
         return BlockTree {
-            .litTree = litTree,
-            .distTree = distTree,
+            .lit_tree = lit_tree,
+            .dist_tree = dist_tree,
         };
     }
 
     pub fn readLitFrom(self: *Self, stream: *InputBitStream) !u9 {
-        return try self.litTree.readFrom(stream);
+        return try self.lit_tree.readFrom(stream);
     }
 
     pub fn readDistFrom(self: *Self, stream: *InputBitStream) !u5 {
-        return try self.distTree.readFrom(stream);
+        return try self.dist_tree.readFrom(stream);
     }
 };
 

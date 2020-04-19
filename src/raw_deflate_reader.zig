@@ -12,14 +12,14 @@ const InputBitStream = @import("./bitstream.zig").InputBitStream;
 pub const RawDeflateReader = struct {
     const Self = @This();
 
-    readStream: *InputBitStream,
+    read_stream: *InputBitStream,
     ring: DeflateRing = DeflateRing {},
-    isLastBlock: bool = false,
-    currentBlock: Block = Block.Empty,
+    is_last_block: bool = false,
+    current_block: Block = Block.Empty,
 
-    pub fn readFromBitStream(readStream: *InputBitStream) Self {
+    pub fn readFromBitStream(read_stream: *InputBitStream) Self {
         var self = Self {
-            .readStream = readStream,
+            .read_stream = read_stream,
         };
 
         return self;
@@ -45,7 +45,7 @@ pub const RawDeflateReader = struct {
 
     fn fetchNextBlock(self: *Self) !void {
         //
-        if ( self.isLastBlock ) {
+        if ( self.is_last_block ) {
             return error.EndOfStream;
         } else {
             self.fetchNextBlockUnconditionally() catch |err| {
@@ -59,17 +59,17 @@ pub const RawDeflateReader = struct {
     }
     fn fetchNextBlockUnconditionally(self: *Self) !void {
         // Not EOF, so grab a new block.
-        var bfinal: u1 = try self.readStream.readBitsNoEof(u1, 1);
-        var btype: u2 = try self.readStream.readBitsNoEof(u2, 2);
+        var bfinal: u1 = try self.read_stream.readBitsNoEof(u1, 1);
+        var btype: u2 = try self.read_stream.readBitsNoEof(u2, 2);
 
         //warn("New block: bfinal={}, btype={}\n", bfinal, btype);
 
-        self.isLastBlock = switch ( bfinal ) {
+        self.is_last_block = switch ( bfinal ) {
             0 => false,
             1 => true,
         };
-        self.currentBlock = try switch ( btype ) {
-            0 => RawBlock.fromBitStream(self.readStream),
+        self.current_block = try switch ( btype ) {
+            0 => RawBlock.fromBitStream(self.read_stream),
             1 => Block {
                 .Huffman = HuffmanBlock {
                     .tree = BlockTree.makeStatic(),
@@ -77,7 +77,7 @@ pub const RawDeflateReader = struct {
             },
             2 => Block {
                 .Huffman = HuffmanBlock {
-                    .tree = try BlockTree.fromBitStream(self.readStream),
+                    .tree = try BlockTree.fromBitStream(self.read_stream),
                 }
             },
             else => error.Failed,
@@ -85,25 +85,25 @@ pub const RawDeflateReader = struct {
     }
 
     fn fetchNextBlockAndByte(self: *Self) !u8 {
-        self.currentBlock = Block.Empty;
+        self.current_block = Block.Empty;
         try self.fetchNextBlock();
         return try self.readByte();
     }
 
     fn readByte(self: *Self) anyerror!u8 {
         // Do we need to fetch a new block?
-        if ( self.currentBlock == Block.Empty ) {
+        if ( self.current_block == Block.Empty ) {
             // Possibly.
             try self.fetchNextBlock();
         }
 
         //
-        return switch ( self.currentBlock ) {
-            Block.Raw => self.currentBlock.Raw.readByteFrom(
-                self.readStream,
+        return switch ( self.current_block ) {
+            Block.Raw => self.current_block.Raw.readByteFrom(
+                self.read_stream,
                 &self.ring),
-            Block.Huffman => self.currentBlock.Huffman.readByteFrom(
-                self.readStream,
+            Block.Huffman => self.current_block.Huffman.readByteFrom(
+                self.read_stream,
                 &self.ring),
             else => error.Failed,
         } catch |err| {

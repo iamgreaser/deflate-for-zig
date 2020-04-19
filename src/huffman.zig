@@ -4,61 +4,61 @@ const warn = std.debug.warn;
 
 //const InputBitStream = @import("./bitstream.zig").InputBitStream;
 
-pub fn CanonicalHuffmanTree(comptime Tlen: type, comptime Tval: type, maxLen: usize) type {
+pub fn CanonicalHuffmanTree(comptime Tlen: type, comptime Tval: type, max_len: usize) type {
     const Tkey: type = usize;
-    const bitWidthCount: usize = (1<<@typeInfo(Tlen).Int.bits);
+    const bit_width_count: usize = (1<<@typeInfo(Tlen).Int.bits);
     const Tmask: type = usize;
     return struct {
         const Self = @This();
 
         // Number of symbols that are actually in the tree.
-        symbolCount: Tkey,
+        symbol_count: Tkey,
 
         // Map: packed symbol index -> symbol.
-        //symbolTree: []Tval, // TODO: Understand slices --GM
-        symbolTreeRaw: [maxLen]Tval, // backing buffer for symbolTree
+        //symbol_tree: []Tval, // TODO: Understand slices --GM
+        symbol_tree_raw: [max_len]Tval, // backing buffer for symbol_tree
 
         // Map: bit width -> value past last possible value for the bit width.
-        symbolEnds: [bitWidthCount]Tmask,
+        symbol_ends: [bit_width_count]Tmask,
 
-        // Map: bit width -> index into symbolTree to first entry of the given bit width.
-        symbolOffsets: [bitWidthCount]Tkey,
+        // Map: bit width -> index into symbol_tree to first entry of the given bit width.
+        symbol_offsets: [bit_width_count]Tkey,
 
         pub fn fromLengths(lengths: []const Tlen) Self {
-            const symbolCount = lengths.len;
+            const symbol_count = lengths.len;
 
             // Sort the symbols in length order, ignoring 0-length
-            var symbolTree = [1]Tval{0} ** maxLen;
-            var symbolEnds = [1]Tkey{0} ** bitWidthCount;
-            var symbolOffsets = [1]Tkey{0} ** bitWidthCount;
-            var nonzeroCount: usize = 0;
-            var endValue: usize = 0;
+            var symbol_tree = [1]Tval{0} ** max_len;
+            var symbol_ends = [1]Tkey{0} ** bit_width_count;
+            var symbol_offsets = [1]Tkey{0} ** bit_width_count;
+            var nonzero_count: usize = 0;
+            var end_value: usize = 0;
             {
-                var bitWidth: usize = 1;
-                while ( bitWidth < bitWidthCount ) : ( bitWidth += 1 ) {
-                    endValue <<= 1;
-                    var startIndex = nonzeroCount;
-                    symbolOffsets[bitWidth] = startIndex;
+                var bit_width: usize = 1;
+                while ( bit_width < bit_width_count ) : ( bit_width += 1 ) {
+                    end_value <<= 1;
+                    var start_index = nonzero_count;
+                    symbol_offsets[bit_width] = start_index;
                     for ( lengths ) |bw, i| {
-                        if ( bw == bitWidth ) {
-                            //warn("{} entry {} = {}\n", bitWidth, nonzeroCount, i);
-                            symbolTree[nonzeroCount] = @intCast(Tval, i);
-                            nonzeroCount += 1;
-                            endValue += 1;
+                        if ( bw == bit_width ) {
+                            //warn("{} entry {} = {}\n", bit_width, nonzero_count, i);
+                            symbol_tree[nonzero_count] = @intCast(Tval, i);
+                            nonzero_count += 1;
+                            end_value += 1;
                         }
                     }
-                    symbolEnds[bitWidth] = endValue;
-                    //warn("nzcount {} = {} / {}\n", bitWidth, startIndex, endValue);
+                    symbol_ends[bit_width] = end_value;
+                    //warn("nzcount {} = {} / {}\n", bit_width, start_index, end_value);
                 }
             }
 
             // Return our tree
             return Self {
-                .symbolCount = symbolCount,
-                .symbolTreeRaw = symbolTree,
-                //.symbolTree = symbolTree[0..nonzeroCount],
-                .symbolEnds = symbolEnds,
-                .symbolOffsets = symbolOffsets,
+                .symbol_count = symbol_count,
+                .symbol_tree_raw = symbol_tree,
+                //.symbol_tree = symbol_tree[0..nonzero_count],
+                .symbol_ends = symbol_ends,
+                .symbol_offsets = symbol_offsets,
             };
         }
 
@@ -67,23 +67,23 @@ pub fn CanonicalHuffmanTree(comptime Tlen: type, comptime Tval: type, maxLen: us
 
             // Calculate the bit width and offset
             // TODO: Clean this mess up, it's quite unintuitive right now
-            var bitWidth: usize = 0;
-            var valueOffset: usize = 0;
-            //warn("{} -> {}\n", bitWidth, self.symbolEnds[bitWidth]);
-            while ( v >= self.symbolEnds[bitWidth] ) {
+            var bit_width: usize = 0;
+            var value_offset: usize = 0;
+            //warn("{} -> {}\n", bit_width, self.symbol_ends[bit_width]);
+            while ( v >= self.symbol_ends[bit_width] ) {
                 v <<= 1;
                 v |= @intCast(usize, try stream.readBitsNoEof(u1, 1));
-                valueOffset = self.symbolEnds[bitWidth]*2;
-                bitWidth += 1;
-                //warn("{}: v={} - {} -> {} (offs={})\n", bitWidth, v, valueOffset, self.symbolEnds[bitWidth], self.symbolOffsets[bitWidth]);
+                value_offset = self.symbol_ends[bit_width]*2;
+                bit_width += 1;
+                //warn("{}: v={} - {} -> {} (offs={})\n", bit_width, v, value_offset, self.symbol_ends[bit_width], self.symbol_offsets[bit_width]);
             }
 
             // Find the correct index
-            var idx: Tkey = @intCast(Tkey, (v - valueOffset) + self.symbolOffsets[bitWidth]);
+            var idx: Tkey = @intCast(Tkey, (v - value_offset) + self.symbol_offsets[bit_width]);
             //warn("{}\n", idx);
 
             // Now read it
-            var result = self.symbolTreeRaw[idx];
+            var result = self.symbol_tree_raw[idx];
             return result;
         }
     };

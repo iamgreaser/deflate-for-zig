@@ -28,28 +28,28 @@ pub const GZipReader = struct {
         break :result table;
     };
     crc: Crc32 = Crc32.init(),
-    bytesAccumulated: usize = 0,
-    didReadFooter: bool = false,
+    bytes_accumulated: usize = 0,
+    did_read_footer: bool = false,
 
-    rawDeflateReader: RawDeflateReader,
-    readStream: *InputBitStream,
+    raw_deflate_reader: RawDeflateReader,
+    read_stream: *InputBitStream,
 
-    pub fn readFromBitStream(readStream: *InputBitStream) !Self {
+    pub fn readFromBitStream(read_stream: *InputBitStream) !Self {
         // TODO: Actually read stuff from the header
 
-        try Self.readGZipHeader(readStream);
+        try Self.readGZipHeader(read_stream);
 
-        var rawDeflateReader = RawDeflateReader.readFromBitStream(readStream);
+        var raw_deflate_reader = RawDeflateReader.readFromBitStream(read_stream);
 
         var self = Self {
-            .rawDeflateReader = rawDeflateReader,
-            .readStream = readStream,
+            .raw_deflate_reader = raw_deflate_reader,
+            .read_stream = read_stream,
         };
 
         return self;
     }
 
-    fn readGZipHeader(readStream: var) !void {
+    fn readGZipHeader(read_stream: var) !void {
         // GZip fields are in Little-Endian.
         // FTEXT: File is probably ASCII text (not relevant)
         const FTEXT    = 0x01;
@@ -66,9 +66,9 @@ pub const GZipReader = struct {
         const VALID_FLAGS = FTEXT|FHCRC|FEXTRA|FNAME|FCOMMENT;
 
         // GZip header magic number
-        var magic0: u8 = try readStream.readBitsNoEof(u8, 8);
-        var magic1: u8 = try readStream.readBitsNoEof(u8, 8);
-        var magic2: u8 = try readStream.readBitsNoEof(u8, 8);
+        var magic0: u8 = try read_stream.readBitsNoEof(u8, 8);
+        var magic1: u8 = try read_stream.readBitsNoEof(u8, 8);
+        var magic2: u8 = try read_stream.readBitsNoEof(u8, 8);
         if ( magic0 != 0x1F ) { return error.Failed; }
         if ( magic1 != 0x8B ) { return error.Failed; }
 
@@ -76,24 +76,24 @@ pub const GZipReader = struct {
         if ( magic2 != 0x08 ) { return error.Failed; }
 
         // Flags
-        const flags: u8 = try readStream.readBitsNoEof(u8, 8);
+        const flags: u8 = try read_stream.readBitsNoEof(u8, 8);
 
         // Modification time
-        const mtime: u32 = try readStream.readBitsNoEof(u32, 32);
+        const mtime: u32 = try read_stream.readBitsNoEof(u32, 32);
 
         // eXtra FLags
-        const xfl: u8 = try readStream.readBitsNoEof(u8, 8);
+        const xfl: u8 = try read_stream.readBitsNoEof(u8, 8);
 
         // Operating System used
-        const gzip_os: u8 = try readStream.readBitsNoEof(u8, 8);
+        const gzip_os: u8 = try read_stream.readBitsNoEof(u8, 8);
 
         // FEXTRA if present
         if ( (flags & FEXTRA) != 0 ) {
             // TODO: Parse if relevant
-            var fextra_len: u16 = try readStream.readBitsNoEof(u16, 16);
+            var fextra_len: u16 = try read_stream.readBitsNoEof(u16, 16);
             var i: usize = 0;
             while ( i < fextra_len ) : ( i += 1 ) {
-                _ = try readStream.readBitsNoEof(u8, 8);
+                _ = try read_stream.readBitsNoEof(u8, 8);
             }
         }
 
@@ -103,7 +103,7 @@ pub const GZipReader = struct {
             warn("original file name: \"", .{});
             // Skip until NUL
             while ( true ) {
-                fname_buf[0] = try readStream.readBitsNoEof(u8, 8);
+                fname_buf[0] = try read_stream.readBitsNoEof(u8, 8);
                 if ( fname_buf[0] == 0 ) { break; }
                 warn("{}", .{fname_buf[0..1]});
             }
@@ -115,7 +115,7 @@ pub const GZipReader = struct {
             var fcomment_buf = [_]u8{0} ** 1;
             // Skip until NUL
             while ( true ) {
-                fcomment_buf[0] = try readStream.readBitsNoEof(u8, 8);
+                fcomment_buf[0] = try read_stream.readBitsNoEof(u8, 8);
                 if ( fcomment_buf[0] == 0 ) { break; }
             }
         }
@@ -123,40 +123,40 @@ pub const GZipReader = struct {
         // FHCRC if present
         if ( (flags & FHCRC) != 0 ) {
             warn("Has 16-bit header CRC\n", .{});
-            _ = try readStream.readBitsNoEof(u16, 16);
+            _ = try read_stream.readBitsNoEof(u16, 16);
         }
     }
 
     pub fn read(self: *Self, buffer: []u8) !usize {
         // Read the data
-        var bytesJustRead = try self.rawDeflateReader.read(buffer);
+        var bytes_just_read = try self.raw_deflate_reader.read(buffer);
 
         // Process CRC32
-        self.crc.update(buffer[0..bytesJustRead]);
+        self.crc.update(buffer[0..bytes_just_read]);
 
         // Process byte count
-        self.bytesAccumulated += bytesJustRead;
+        self.bytes_accumulated += bytes_just_read;
 
         // If we hit stream EOF, read the CRC32 and ISIZE fields
-        if ( bytesJustRead == 0 ) {
-            if ( !self.didReadFooter ) {
-                self.didReadFooter = true;
-                self.readStream.alignToByte();
-                var crcFinished: u32 = self.crc.final();
-                var crcExpected: u32 = try self.readStream.readBitsNoEof(u32, 32);
-                var bytesExpected: u32 = try self.readStream.readBitsNoEof(u32, 32);
+        if ( bytes_just_read == 0 ) {
+            if ( !self.did_read_footer ) {
+                self.did_read_footer = true;
+                self.read_stream.alignToByte();
+                var crc_finished: u32 = self.crc.final();
+                var crc_expected: u32 = try self.read_stream.readBitsNoEof(u32, 32);
+                var bytes_expected: u32 = try self.read_stream.readBitsNoEof(u32, 32);
 
-                if ( crcFinished != crcExpected ) {
-                    warn("CRC mismatch: got {}, expected {}\n", .{crcFinished, crcExpected});
+                if ( crc_finished != crc_expected ) {
+                    warn("CRC mismatch: got {}, expected {}\n", .{crc_finished, crc_expected});
                     return error.Failed;
                 }
 
-                if ( self.bytesAccumulated != bytesExpected ) {
-                    warn("Size mismatch: got {}, expected {}\n", .{self.bytesAccumulated, bytesExpected});
+                if ( self.bytes_accumulated != bytes_expected ) {
+                    warn("Size mismatch: got {}, expected {}\n", .{self.bytes_accumulated, bytes_expected});
                     return error.Failed;
                 }
             }
         }
-        return bytesJustRead;
+        return bytes_just_read;
     }
 };
