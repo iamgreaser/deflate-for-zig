@@ -9,24 +9,6 @@ const RawDeflateReader = @import("./raw_deflate_reader.zig").RawDeflateReader;
 pub const GZipReader = struct {
     const Self = @This();
 
-    const crc32Table: [0x100]u32 = result: {
-        @setEvalBranchQuota(0x1000 * 8 + 100);
-        var table = [_]u32{0} ** 256;
-        var i: usize = 0;
-        while (i < 0x100) : (i += 1) {
-            var v: u32 = @intCast(u32, i);
-            var j: usize = 0;
-            while (j < 8) : (j += 1) {
-                if ((v & 0x1) != 0) {
-                    v = (0xEDB88320 ^ (v >> 1));
-                } else {
-                    v >>= 1;
-                }
-            }
-            table[i] = v;
-        }
-        break :result table;
-    };
     crc: Crc32 = Crc32.init(),
     bytes_accumulated: usize = 0,
     did_read_footer: bool = false,

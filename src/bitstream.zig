@@ -4,7 +4,6 @@ const Endian = std.builtin.Endian;
 const InStream = std.io.InStream;
 const BitInStream = std.io.BitInStream;
 const BufferedInStream = std.io.BufferedInStream;
-const bufferedInStream = std.io.bufferedInStream;
 const File = std.fs.File;
 
 const BUFFER_SIZE = 1024;

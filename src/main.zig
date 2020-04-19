@@ -3,8 +3,6 @@ const std = @import("std");
 const warn = std.debug.warn;
 const BitInStream = std.io.BitInStream;
 const BufferedInStream = std.io.BufferedInStream;
-const bufferedInStream = std.io.bufferedInStream;
-const File = std.fs.File;
 const cwd = std.fs.cwd;
 const allocator = std.heap.page_allocator;
 
