@@ -2,8 +2,6 @@
 const std = @import("std");
 const warn = std.debug.warn;
 
-//const InputBitStream = @import("./bitstream.zig").InputBitStream;
-
 pub fn CanonicalHuffmanTree(comptime Tlen: type, comptime Tval: type, max_len: usize) type {
     const Tkey: type = usize;
     const bit_width_count: usize = (1 << @typeInfo(Tlen).Int.bits);

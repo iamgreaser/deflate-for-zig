@@ -3,13 +3,20 @@ const std = @import("std");
 const warn = std.debug.warn;
 const BitInStream = std.io.BitInStream;
 const BufferedInStream = std.io.BufferedInStream;
+const Endian = std.builtin.Endian;
+const File = std.fs.File;
 const cwd = std.fs.cwd;
 const allocator = std.heap.page_allocator;
 
 const CanonicalHuffmanTree = @import("./huffman.zig").CanonicalHuffmanTree;
 const GZipReader = @import("./gzip.zig").GZipReader;
-const InputBitStream = @import("./bitstream.zig").InputBitStream;
-const InputBitStreamBacking = @import("./bitstream.zig").InputBitStreamBacking;
+
+const BUFFER_SIZE = 1024;
+pub fn InputBitStreamBase(comptime TInStream: type) type {
+    return BitInStream(Endian.Little, TInStream);
+}
+pub const InputBitStreamBacking = BufferedInStream(BUFFER_SIZE, File.InStream);
+pub const InputBitStream = InputBitStreamBase(InputBitStreamBacking.InStream);
 
 var block_buf = [_]u8{0} ** 10240;
 
@@ -29,7 +36,7 @@ pub fn main() anyerror!void {
             }; // TODO: find or propose a cleaner way to build a BufferedInStream --GM
             var read_buffered_stream = read_buffered.inStream();
             var read_bit_stream = InputBitStream.init(read_buffered_stream);
-            var gzip = try GZipReader.readFromBitStream(&read_bit_stream);
+            var gzip = try GZipReader(InputBitStream).readFromBitStream(&read_bit_stream);
 
             var total_bytes_read: usize = 0;
             while (true) {
