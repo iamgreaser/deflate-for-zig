@@ -3,7 +3,7 @@ const std = @import("std");
 const warn = std.debug.warn;
 
 const BlockTree = @import("./block_tree.zig").BlockTree;
-const DeflateRing = @import("./deflate_ring.zig").DeflateRing;
+const SlidingWindow = @import("./sliding_window.zig").SlidingWindow;
 
 pub fn RawBlock(comptime InputBitStream: type) type {
     return struct {
@@ -29,10 +29,10 @@ pub fn RawBlock(comptime InputBitStream: type) type {
             };
         }
 
-        pub fn readByteFrom(self: *Self, stream: *InputBitStream, ring: *DeflateRing) !u8 {
+        pub fn readByteFrom(self: *Self, stream: *InputBitStream, window: *SlidingWindow) !u8 {
             if (self.bytes_left >= 1) {
-                try ring.addByte(try stream.readBitsNoEof(u8, 8));
-                var byte: u8 = try ring.pullByte();
+                try window.addByte(try stream.readBitsNoEof(u8, 8));
+                var byte: u8 = try window.pullByte();
                 self.bytes_left -= 1;
                 return byte;
             } else {
@@ -99,14 +99,14 @@ pub fn HuffmanBlock(comptime InputBitStream: type) type {
 
         tree: BlockTree(InputBitStream),
 
-        pub fn readByteFrom(self: *Self, stream: *InputBitStream, ring: *DeflateRing) !u8 {
+        pub fn readByteFrom(self: *Self, stream: *InputBitStream, window: *SlidingWindow) !u8 {
             // Do we have anything queued?
-            while (ring.isEmpty()) {
+            while (window.isEmpty()) {
                 // No. Alright, we need more bytes.
                 var v: u9 = try self.tree.readLitFrom(stream);
 
                 if (v >= 0 and v <= 255) {
-                    try ring.addByte(@intCast(u8, v));
+                    try window.addByte(@intCast(u8, v));
                 } else if (v >= 257 and v <= 285) {
                     var extra_bits_for_len = len_extra_bits_table[v - 257];
                     var copy_len = len_base_table[v - 257] + try stream.readBitsNoEof(u5, extra_bits_for_len);
@@ -118,7 +118,7 @@ pub fn HuffmanBlock(comptime InputBitStream: type) type {
                     //warn("copy {} offset {}\n", copy_len, copy_dist);
                     //warn("len def v={} base={} len={}\n", v, len_base_table[v-257], extra_bits_for_len);
 
-                    try ring.copyPastBytes(copy_len, copy_dist);
+                    try window.copyPastBytes(copy_len, copy_dist);
                 } else if (v == 256) {
                     return error.EndOfStream;
                 } else {
@@ -127,7 +127,7 @@ pub fn HuffmanBlock(comptime InputBitStream: type) type {
             }
 
             // Alright! Read a byte.
-            var byte: u8 = try ring.pullByte();
+            var byte: u8 = try window.pullByte();
             return byte;
         }
     };

@@ -6,7 +6,7 @@ const Block = @import("./block.zig").Block;
 const RawBlock = @import("./block.zig").RawBlock;
 const HuffmanBlock = @import("./block.zig").HuffmanBlock;
 const BlockTree = @import("./block_tree.zig").BlockTree;
-const DeflateRing = @import("./deflate_ring.zig").DeflateRing;
+const SlidingWindow = @import("./sliding_window.zig").SlidingWindow;
 
 pub fn RawDeflateReader(comptime InputBitStream: type) type {
     return struct {
@@ -17,7 +17,7 @@ pub fn RawDeflateReader(comptime InputBitStream: type) type {
         const ThisBlockTree = BlockTree(InputBitStream);
 
         read_stream: *InputBitStream,
-        ring: DeflateRing = DeflateRing{},
+        window: SlidingWindow = SlidingWindow{},
         is_last_block: bool = false,
         current_block: ThisBlock = ThisBlock.Empty,
 
@@ -100,8 +100,8 @@ pub fn RawDeflateReader(comptime InputBitStream: type) type {
                 try self.fetchNextBlock();
             }
             return switch (self.current_block) {
-                .Raw => self.current_block.Raw.readByteFrom(self.read_stream, &self.ring),
-                .Huffman => self.current_block.Huffman.readByteFrom(self.read_stream, &self.ring),
+                .Raw => self.current_block.Raw.readByteFrom(self.read_stream, &self.window),
+                .Huffman => self.current_block.Huffman.readByteFrom(self.read_stream, &self.window),
                 else => error.Failed,
             } catch |err| {
                 if (err == error.EndOfStream) {

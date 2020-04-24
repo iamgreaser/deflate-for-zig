@@ -2,7 +2,7 @@
 const std = @import("std");
 const warn = std.debug.warn;
 
-pub const DeflateRing = struct {
+pub const SlidingWindow = struct {
     const Self = @This();
 
     const RING_LENGTH = 32 * 1024;
