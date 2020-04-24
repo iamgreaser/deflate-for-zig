@@ -45,7 +45,7 @@ pub fn main() anyerror!void {
                     break;
                 } else {
                     total_bytes_read += @intCast(usize, bytes_read);
-                    warn("read {} bytes for a total of {} bytes\n", .{ bytes_read, total_bytes_read });
+                    //warn("read {} bytes for a total of {} bytes\n", .{ bytes_read, total_bytes_read });
                     //warn("contents: [{}]\n", .{block_buf[0..bytes_read]});
                 }
             }
