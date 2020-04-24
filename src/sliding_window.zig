@@ -2,83 +2,91 @@
 const std = @import("std");
 const warn = std.debug.warn;
 
-pub const SlidingWindow = struct {
-    const Self = @This();
+/// Fixed-length element sliding window.
+/// Write to the very end.
+/// Read from an offset from the end or theoretical start.
+/// Older entries are removed.
+/// Useful for audio processing and LZ77-style compression.
+pub fn SlidingWindow(comptime Element: type, comptime window_length: comptime_int) type {
+    return struct {
+        const Self = @This();
 
-    const RING_LENGTH = 32 * 1024;
+        entries: [window_length]Element = undefined, //[_]Element{0} ** window_length,
+        read_index: usize = 0,
+        write_index: usize = 0,
+        amount_to_read: usize = 0,
+        amount_written: usize = 0,
 
-    ring_entries: [RING_LENGTH]u8 = [_]u8{0} ** RING_LENGTH,
-    ring_read_index: usize = 0,
-    ring_write_index: usize = 0,
-    ring_amount_to_read: usize = 0,
-    ring_amount_written: usize = 0,
-
-    pub fn addByte(self: *Self, byte: u8) !void {
-        // Check...
-        if (self.ring_amount_to_read >= RING_LENGTH) {
-            // Overflow!
-            return error.Failed;
-        }
-
-        // OK, add it!
-        self.ring_entries[self.ring_write_index] = byte;
-        self.ring_write_index = (self.ring_write_index + 1) % RING_LENGTH;
-        self.ring_amount_to_read += 1;
-        self.ring_amount_written += 1;
-    }
-
-    pub fn copyPastBytes(self: *Self, copy_len: usize, copy_dist: usize) !void {
-        // Guard against trying to read back through the window
-        //warn("distance {} vs {}\n", distance, self.ring_amount_written);
-        if (copy_dist > self.ring_amount_written) {
-            return error.Failed;
-        }
-
-        // Also, 0 is not a valid distance
-        if (copy_dist < 1) {
-            return error.Failed;
-        }
-
-        // Check ahead of time
-        if (self.ring_amount_to_read + copy_len > RING_LENGTH) {
-            // Overflow!
-            return error.Failed;
-        }
-
-        // Copy bytes
-        {
-            var i: usize = 0;
-            var idx = ((self.ring_write_index + RING_LENGTH) - copy_dist) % RING_LENGTH;
-            while (i < copy_len) : (i += 1) {
-                self.ring_entries[self.ring_write_index] = self.ring_entries[idx];
-                idx = (idx + 1) % RING_LENGTH;
-                self.ring_write_index = (self.ring_write_index + 1) % RING_LENGTH;
+        /// Appends an element to the end of the window.
+        pub fn appendElement(self: *Self, element: Element) !void {
+            // Check...
+            // TODO: remove the read index stuff from this type
+            if (self.amount_to_read >= window_length) {
+                // Overflow!
+                return error.Overflow;
             }
-            self.ring_amount_to_read += copy_len;
-            self.ring_amount_written += copy_len;
+
+            // OK, add it!
+            self.entries[self.write_index] = element;
+            self.write_index = (self.write_index + 1) % window_length;
+            self.amount_to_read += 1;
+            self.amount_written += 1;
         }
 
-        // Sanity check
-        if (self.ring_amount_to_read > RING_LENGTH) {
-            // Overflow!
-            return error.Failed;
+        /// Copies multiple elements from the end of the sliding window.
+        pub fn copyElementsFromEnd(self: *Self, copy_dist: usize, copy_len: usize) !void {
+            // Guard against trying to read back through the window
+            //warn("distance {} vs {}\n", distance, self.amount_written);
+            if (copy_dist > self.amount_written) {
+                return error.OutOfRangeIndex;
+            }
+
+            // Also, 0 is not a valid distance
+            if (copy_dist < 1) {
+                return error.OutOfRangeIndex;
+            }
+
+            // Check ahead of time
+            if (self.amount_to_read + copy_len > window_length) {
+                // Overflow!
+                return error.Overflow;
+            }
+
+            // Copy elements
+            {
+                var i: usize = 0;
+                var idx = ((self.write_index + window_length) - copy_dist) % window_length;
+                while (i < copy_len) : (i += 1) {
+                    self.entries[self.write_index] = self.entries[idx];
+                    idx = (idx + 1) % window_length;
+                    self.write_index = (self.write_index + 1) % window_length;
+                }
+                self.amount_to_read += copy_len;
+                self.amount_written += copy_len;
+            }
+
+            // Sanity check
+            if (self.amount_to_read > window_length) {
+                // Overflow!
+                return error.Overflow;
+            }
         }
-    }
 
-    pub fn pullByte(self: *Self) !u8 {
-        // We need to actually have something to read here
-        if (self.isEmpty()) {
-            return error.Failed;
+        pub fn readElement(self: *Self) !Element {
+            // We need to actually have something to read here
+            if (self.isEmpty()) {
+                return error.Underflow;
+            }
+
+            var element: Element = self.entries[self.read_index];
+            self.read_index = (self.read_index + 1) % window_length;
+            self.amount_to_read -= 1;
+
+            return element;
         }
 
-        var byte: u8 = self.ring_entries[self.ring_read_index];
-        self.ring_read_index = (self.ring_read_index + 1) % RING_LENGTH;
-        self.ring_amount_to_read -= 1;
-
-        return byte;
-    }
-
-    pub fn isEmpty(self: *Self) bool {
-        return (self.ring_amount_to_read < 1);
-    }
-};
+        pub fn isEmpty(self: *Self) bool {
+            return (self.amount_to_read < 1);
+        }
+    };
+}

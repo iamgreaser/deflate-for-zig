@@ -8,6 +8,8 @@ const HuffmanBlock = @import("./block.zig").HuffmanBlock;
 const BlockTree = @import("./block_tree.zig").BlockTree;
 const SlidingWindow = @import("./sliding_window.zig").SlidingWindow;
 
+pub const DeflateSlidingWindow = SlidingWindow(u8, 32 * 1024);
+
 pub fn RawDeflateReader(comptime InputBitStream: type) type {
     return struct {
         const Self = @This();
@@ -17,7 +19,7 @@ pub fn RawDeflateReader(comptime InputBitStream: type) type {
         const ThisBlockTree = BlockTree(InputBitStream);
 
         read_stream: *InputBitStream,
-        window: SlidingWindow = SlidingWindow{},
+        window: DeflateSlidingWindow = DeflateSlidingWindow{},
         is_last_block: bool = false,
         current_block: ThisBlock = ThisBlock.Empty,
 
