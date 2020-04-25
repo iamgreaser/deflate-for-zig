@@ -77,11 +77,11 @@ pub fn CanonicalHuffmanTree(comptime Tlen: type, comptime Tval: type, max_len: u
             }
 
             // Find the correct index
-            var idx: Tkey = @intCast(Tkey, (v - value_offset) + self.symbol_offsets[bit_width]);
+            const idx: Tkey = @intCast(Tkey, (v - value_offset) + self.symbol_offsets[bit_width]);
             //warn("{}\n", idx);
 
             // Now read it
-            var result = self.symbol_tree_raw[idx];
+            const result = self.symbol_tree_raw[idx];
             return result;
         }
     };

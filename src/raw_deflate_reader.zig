@@ -17,7 +17,7 @@ const len_extra_bits_table = result: {
     var table = [_]u3{0} ** 29;
     var i: usize = 4;
     while (i < table.len - 1) : (i += 1) {
-        var bits = ((i - 4) >> 2);
+        const bits = ((i - 4) >> 2);
         table[i] = @intCast(u4, bits);
     }
 
@@ -29,7 +29,7 @@ const len_base_table = result: {
     var i: usize = 0;
     var v: u9 = 3;
     while (i < table.len) : (i += 1) {
-        var bits = len_extra_bits_table[i];
+        const bits = len_extra_bits_table[i];
         table[i] = @intCast(u9, v);
         v += (1 << bits);
         // The second-to-last case is kinda weird.
@@ -45,7 +45,7 @@ const dist_extra_bits_table = result: {
     var table = [_]u4{0} ** 30;
     var i: usize = 2;
     while (i < table.len) : (i += 1) {
-        var bits = ((i - 2) >> 1);
+        const bits = ((i - 2) >> 1);
         table[i] = @intCast(u4, bits);
     }
     break :result table;
@@ -56,7 +56,7 @@ const dist_base_table = result: {
     var i: usize = 0;
     var v: u16 = 1;
     while (i < table.len) : (i += 1) {
-        var bits = dist_extra_bits_table[i];
+        const bits = dist_extra_bits_table[i];
         table[i] = @intCast(u16, v);
         v += (1 << bits);
     }
@@ -175,15 +175,15 @@ pub fn RawDeflateReader(comptime InStreamType: type) type {
                 try self.window.appendElement(@intCast(u8, v));
                 self.bytes_to_read_from_window += 1;
             } else if (v >= 257 and v <= 285) {
-                var extra_bits_for_len = len_extra_bits_table[v - 257];
-                var copy_len = len_base_table[v - 257] + try self.read_stream.readBitsNoEof(u5, extra_bits_for_len);
+                const extra_bits_for_len = len_extra_bits_table[v - 257];
+                const copy_len = len_base_table[v - 257] + try self.read_stream.readBitsNoEof(u5, extra_bits_for_len);
 
-                var dist_offset: u9 = try switch (self.current_block) {
+                const dist_offset: u9 = try switch (self.current_block) {
                     .Huffman => self.current_block.Huffman.readDistFrom(&self.read_stream),
                     else => error.Failed,
                 };
-                var extra_bits_for_dist = dist_extra_bits_table[dist_offset];
-                var copy_dist = dist_base_table[dist_offset] + try self.read_stream.readBitsNoEof(u13, extra_bits_for_dist);
+                const extra_bits_for_dist = dist_extra_bits_table[dist_offset];
+                const copy_dist = dist_base_table[dist_offset] + try self.read_stream.readBitsNoEof(u13, extra_bits_for_dist);
 
                 //warn("copy {} offset {}\n", copy_len, copy_dist);
                 //warn("len def v={} base={} len={}\n", v, len_base_table[v-257], extra_bits_for_len);
@@ -203,7 +203,7 @@ pub fn RawDeflateReader(comptime InStreamType: type) type {
                 return try self.readBytesFromWindow(buffer);
             }
 
-            var v: u9 = try self.readElementFromBlock();
+            const v: u9 = try self.readElementFromBlock();
             try self.processBlockElement(v);
 
             // At this point we should have something in the window.

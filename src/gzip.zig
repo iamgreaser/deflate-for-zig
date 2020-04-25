@@ -47,9 +47,9 @@ pub fn GZipReader(comptime InStreamType: type) type {
             const VALID_FLAGS = FTEXT | FHCRC | FEXTRA | FNAME | FCOMMENT;
 
             // GZip header magic number
-            var magic0: u8 = try read_stream.readIntLittle(u8);
-            var magic1: u8 = try read_stream.readIntLittle(u8);
-            var magic2: u8 = try read_stream.readIntLittle(u8);
+            const magic0: u8 = try read_stream.readIntLittle(u8);
+            const magic1: u8 = try read_stream.readIntLittle(u8);
+            const magic2: u8 = try read_stream.readIntLittle(u8);
             if (magic0 != 0x1F) {
                 return error.Failed;
             }
@@ -77,7 +77,7 @@ pub fn GZipReader(comptime InStreamType: type) type {
             // FEXTRA if present
             if ((flags & FEXTRA) != 0) {
                 // TODO: Parse if relevant
-                var fextra_len: u16 = try read_stream.readIntLittle(u16);
+                const fextra_len: u16 = try read_stream.readIntLittle(u16);
                 var i: usize = 0;
                 while (i < fextra_len) : (i += 1) {
                     _ = try read_stream.readIntLittle(u8);
@@ -120,7 +120,7 @@ pub fn GZipReader(comptime InStreamType: type) type {
 
         pub fn read(self: *Self, buffer: []u8) !usize {
             // Read the data
-            var bytes_just_read = try self.raw_deflate_reader.read(buffer);
+            const bytes_just_read = try self.raw_deflate_reader.read(buffer);
 
             // Process CRC32
             self.crc.update(buffer[0..bytes_just_read]);
@@ -133,9 +133,9 @@ pub fn GZipReader(comptime InStreamType: type) type {
                 if (!self.did_read_footer) {
                     self.did_read_footer = true;
                     //self.read_bit_stream.alignToByte();
-                    var crc_finished: u32 = self.crc.final();
-                    var crc_expected: u32 = try self.read_stream.readIntLittle(u32);
-                    var bytes_expected: u32 = try self.read_stream.readIntLittle(u32);
+                    const crc_finished: u32 = self.crc.final();
+                    const crc_expected: u32 = try self.read_stream.readIntLittle(u32);
+                    const bytes_expected: u32 = try self.read_stream.readIntLittle(u32);
 
                     if (crc_finished != crc_expected) {
                         warn("CRC mismatch: got {}, expected {}\n", .{ crc_finished, crc_expected });

@@ -15,8 +15,8 @@ pub fn RawBlock(comptime InputBitStream: type) type {
         pub fn fromBitStream(stream: *InputBitStream) !ThisBlock {
             stream.alignToByte();
 
-            var len: u16 = try stream.readBitsNoEof(u16, 16);
-            var nlen: u16 = try stream.readBitsNoEof(u16, 16);
+            const len: u16 = try stream.readBitsNoEof(u16, 16);
+            const nlen: u16 = try stream.readBitsNoEof(u16, 16);
             // Integrity check
             if (len != (nlen ^ 0xFFFF)) {
                 return error.Failed;
@@ -31,7 +31,7 @@ pub fn RawBlock(comptime InputBitStream: type) type {
 
         pub fn readElementFrom(self: *Self, stream: *InputBitStream) !u9 {
             if (self.bytes_left >= 1) {
-                var v: u9 = try stream.readBitsNoEof(u9, 8);
+                const v: u9 = try stream.readBitsNoEof(u9, 8);
                 self.bytes_left -= 1;
                 return v;
             } else {
@@ -49,7 +49,7 @@ pub fn HuffmanBlock(comptime InputBitStream: type) type {
         tree: BlockTree(InputBitStream),
 
         pub fn readElementFrom(self: *Self, stream: *InputBitStream) !u9 {
-            var v: u9 = try self.tree.readLitFrom(stream);
+            const v: u9 = try self.tree.readLitFrom(stream);
 
             if (v == 256) {
                 return error.EndOfBlock;
