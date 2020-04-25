@@ -6,6 +6,6 @@ This is a work in progress.
 
 Currently it:
 
-* reads GZip files
-* decompresses them to nowhere
+* reads a GZip stream from stdint
+* decompresses it to stdout
 * validates the contents against the CRC32 and uncompressed length inside the GZip footer
