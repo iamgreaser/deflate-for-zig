@@ -2,6 +2,7 @@
 const std = @import("std");
 const BitInStream = std.io.BitInStream;
 const Endian = std.builtin.Endian;
+const min = std.math.min;
 const warn = std.debug.warn;
 
 const Block = @import("./block.zig").Block;
@@ -87,17 +88,17 @@ pub fn RawDeflateReader(comptime InStreamType: type) type {
 
         pub fn read(self: *Self, buffer: []u8) !usize {
             var i: usize = 0;
-            while (i < buffer.len) : (i += 1) {
+            while (i < buffer.len) {
                 var j: usize = 0;
 
-                var byte = self.readByte() catch |err| {
+                var bytes_read = self.readBytes(buffer[i..]) catch |err| {
                     if (err == error.EndOfStream) {
                         return i;
                     } else {
                         return err;
                     }
                 };
-                buffer[i] = byte;
+                i += bytes_read;
             }
 
             return i;
@@ -143,12 +144,16 @@ pub fn RawDeflateReader(comptime InStreamType: type) type {
             };
         }
 
-        fn readByteFromWindow(self: *Self) !u8 {
-            var idx: usize = self.bytes_to_read_from_window;
-            var byte: u8 = try self.window.readElementFromEnd(idx);
-            self.bytes_to_read_from_window -= 1;
+        fn readBytesFromWindow(self: *Self, bytes: []u8) !usize {
+            var num_bytes_read = min(self.bytes_to_read_from_window, bytes.len);
+            var i: usize = 0;
+            while (i < num_bytes_read) : (i += 1) {
+                var byte: u8 = try self.window.readElementFromEnd(self.bytes_to_read_from_window);
+                self.bytes_to_read_from_window -= 1;
+                bytes[i] = byte;
+            }
             //warn("{c}", .{byte});
-            return byte;
+            return num_bytes_read;
         }
 
         fn readElementFromBlockDirectly(self: *Self) !u9 {
@@ -198,11 +203,11 @@ pub fn RawDeflateReader(comptime InStreamType: type) type {
             }
         }
 
-        fn readByte(self: *Self) !u8 {
+        fn readBytes(self: *Self, bytes: []u8) !usize {
             // Do we have bytes to read from the window?
             if (self.bytes_to_read_from_window >= 1) {
                 // Yes - read from there first.
-                return try self.readByteFromWindow();
+                return try self.readBytesFromWindow(bytes);
             }
 
             var v: u9 = try self.readElementFromBlock();
@@ -210,7 +215,7 @@ pub fn RawDeflateReader(comptime InStreamType: type) type {
 
             // At this point we should have something in the window.
             // If not, well, enjoy your runtime error.
-            return try self.readByteFromWindow();
+            return try self.readBytesFromWindow(bytes);
         }
     };
 }
