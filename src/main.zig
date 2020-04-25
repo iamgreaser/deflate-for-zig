@@ -2,53 +2,49 @@
 const std = @import("std");
 const warn = std.debug.warn;
 const BitInStream = std.io.BitInStream;
-const BufferedInStream = std.io.BufferedInStream;
 const Endian = std.builtin.Endian;
 const File = std.fs.File;
+const bufferedInStream = std.io.bufferedInStream;
+const bufferedOutStream = std.io.bufferedOutStream;
 const cwd = std.fs.cwd;
-const allocator = std.heap.page_allocator;
 
 const CanonicalHuffmanTree = @import("./huffman.zig").CanonicalHuffmanTree;
 const GZipReader = @import("./gzip.zig").GZipReader;
 
-const BUFFER_SIZE = 1024;
-pub fn InputBitStreamBase(comptime TInStream: type) type {
-    return BitInStream(Endian.Little, TInStream);
-}
-pub const InputBitStreamBacking = BufferedInStream(BUFFER_SIZE, File.InStream);
-pub const InputBitStream = InputBitStreamBase(InputBitStreamBacking.InStream);
-
-var block_buf = [_]u8{0} ** 10240;
-
 pub fn main() anyerror!void {
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    var block_buf = [_]u8{0} ** 4096;
 
-    for (args) |arg, i| {
-        if (i >= 1) {
-            warn("arg {} = '{}'\n", .{ i, arg });
+    // Input stream
+    var read_raw_file = std.io.getStdIn();
+    //defer read_raw_file.close();
+    var read_raw_stream = read_raw_file.inStream();
+    var read_buffered = bufferedInStream(read_raw_stream);
+    var read_buffered_stream = read_buffered.inStream();
+    var gzip = try GZipReader(@TypeOf(read_buffered_stream)).init(read_buffered_stream);
+    //var gzip = try GZipReader(File.InStream).init(read_raw_stream);
 
-            var read_raw_file = try cwd().openFile(arg, .{});
-            defer read_raw_file.close();
-            var read_raw_stream = read_raw_file.inStream();
-            var read_buffered = InputBitStreamBacking{
-                .unbuffered_in_stream = read_raw_stream,
-            }; // TODO: find or propose a cleaner way to build a BufferedInStream --GM
-            var read_buffered_stream = read_buffered.inStream();
-            var gzip = try GZipReader(InputBitStreamBacking.InStream).init(read_buffered_stream);
-            //var gzip = try GZipReader(File.InStream).init(read_raw_stream);
+    // Output stream
+    var write_raw_file = std.io.getStdOut();
+    //defer write_raw_file.close();
+    var write_raw_stream = write_raw_file.outStream();
+    var write_buffered_stream = bufferedOutStream(write_raw_stream);
+    defer {
+        write_buffered_stream.flush() catch |err| {};
+    }
 
-            var total_bytes_read: usize = 0;
-            while (true) {
-                var bytes_read = try gzip.read(&block_buf);
-                if (bytes_read == 0) {
-                    break;
-                } else {
-                    total_bytes_read += @intCast(usize, bytes_read);
-                    //warn("read {} bytes for a total of {} bytes\n", .{ bytes_read, total_bytes_read });
-                    //warn("contents: [{}]\n", .{block_buf[0..bytes_read]});
-                }
+    var total_bytes_read: usize = 0;
+    while (true) {
+        var bytes_read = try gzip.read(&block_buf);
+        if (bytes_read == 0) {
+            break;
+        } else {
+            total_bytes_read += @intCast(usize, bytes_read);
+            var bytes_written = try write_buffered_stream.write(block_buf[0..bytes_read]);
+            if (bytes_written != bytes_read) {
+                return error.Failed;
             }
+            //warn("read {} bytes for a total of {} bytes\n", .{ bytes_read, total_bytes_read });
+            //warn("contents: [{}]\n", .{block_buf[0..bytes_read]});
         }
     }
 }
