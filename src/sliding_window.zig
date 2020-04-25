@@ -58,13 +58,19 @@ pub fn SlidingWindow(comptime Element: type, window_length: usize) type {
 
             var elements_to_read = min(offset, buffer.len);
             var i: usize = 0;
-            var idx = ((self.write_index + window_length) - offset) % window_length;
-            while (i < elements_to_read) : (i += 1) {
-                buffer[i] = self.elements[idx];
-                idx += 1;
-                if (idx == window_length) {
-                    idx = 0;
-                }
+            var beg_idx = ((self.write_index + window_length) - offset) % window_length;
+            var end_idx = beg_idx + elements_to_read;
+
+            // Do we need to split this into 2 copies?
+            if (end_idx > window_length) {
+                // Yes - do 2 copies.
+                var block_1_length = window_length - beg_idx;
+                var block_2_length = elements_to_read - block_1_length;
+                std.mem.copy(Element, buffer[0..block_1_length], self.elements[beg_idx..]);
+                std.mem.copy(Element, buffer[block_1_length..], self.elements[0..block_2_length]);
+            } else {
+                // No - do 1 copy.
+                std.mem.copy(Element, buffer, self.elements[beg_idx..end_idx]);
             }
 
             return elements_to_read;
