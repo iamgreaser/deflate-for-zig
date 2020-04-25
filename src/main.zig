@@ -9,7 +9,7 @@ const bufferedOutStream = std.io.bufferedOutStream;
 const cwd = std.fs.cwd;
 
 const CanonicalHuffmanTree = @import("./huffman.zig").CanonicalHuffmanTree;
-const GZipReader = @import("./gzip.zig").GZipReader;
+const gzipInStream = @import("./gzip.zig").gzipInStream;
 
 pub fn main() anyerror!void {
     // Input stream
@@ -18,8 +18,8 @@ pub fn main() anyerror!void {
     const read_raw_stream = read_raw_file.inStream();
     var read_buffered = bufferedInStream(read_raw_stream);
     const read_buffered_stream = read_buffered.inStream();
-    var gzip = try GZipReader(@TypeOf(read_buffered_stream)).init(read_buffered_stream);
-    //var gzip = try GZipReader(File.InStream).init(read_raw_stream);
+    var gzip = gzipInStream(read_buffered_stream);
+    _ = try gzip.readHeader();
 
     // Output stream
     const write_raw_file = std.io.getStdOut();

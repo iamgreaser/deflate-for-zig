@@ -5,7 +5,7 @@ const warn = std.debug.warn;
 
 const RawDeflateReader = @import("./raw_deflate_reader.zig").RawDeflateReader;
 
-pub fn GZipReader(comptime InStreamType: type) type {
+pub fn GzipInStream(comptime InStreamType: type) type {
     return struct {
         const Self = @This();
 
@@ -18,17 +18,15 @@ pub fn GZipReader(comptime InStreamType: type) type {
         raw_deflate_reader: RawDeflateReaderType,
         read_stream: InStreamType,
 
-        pub fn init(read_stream: InStreamType) !Self {
-            var raw_deflate_reader = RawDeflateReaderType.init(read_stream);
-            var self = Self{
+        pub fn init(read_stream: InStreamType) Self {
+            const raw_deflate_reader = RawDeflateReaderType.init(read_stream);
+            return .{
                 .read_stream = read_stream,
                 .raw_deflate_reader = raw_deflate_reader,
             };
-            try self.readGZipHeader();
-            return self;
         }
 
-        fn readGZipHeader(self: *Self) !void {
+        pub fn readHeader(self: *Self) !void {
             var read_stream = self.read_stream;
 
             // GZip fields are in Little-Endian.
@@ -139,4 +137,10 @@ pub fn GZipReader(comptime InStreamType: type) type {
             return bytes_just_read;
         }
     };
+}
+
+pub fn gzipInStream(
+    underlying_stream: var,
+) GzipInStream(@TypeOf(underlying_stream)) {
+    return GzipInStream(@TypeOf(underlying_stream)).init(underlying_stream);
 }
