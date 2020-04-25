@@ -171,28 +171,30 @@ pub fn RawDeflateReader(comptime InStreamType: type) type {
         }
 
         fn processBlockElement(self: *Self, v: u9) !void {
-            if (v >= 0 and v <= 255) {
-                try self.window.appendElement(@intCast(u8, v));
-                self.bytes_to_read_from_window += 1;
-            } else if (v >= 257 and v <= 285) {
-                const extra_bits_for_len = len_extra_bits_table[v - 257];
-                const copy_len = len_base_table[v - 257] + try self.read_stream.readBitsNoEof(u5, extra_bits_for_len);
+            switch (v) {
+                0...255 => {
+                    try self.window.appendElement(@intCast(u8, v));
+                    self.bytes_to_read_from_window += 1;
+                },
+                256 => unreachable, // 256 (end of block) does NOT appear in this layer!
+                257...285 => {
+                    const extra_bits_for_len = len_extra_bits_table[v - 257];
+                    const copy_len = len_base_table[v - 257] + try self.read_stream.readBitsNoEof(u5, extra_bits_for_len);
 
-                const dist_offset: u9 = try switch (self.current_block) {
-                    .Huffman => self.current_block.Huffman.readDistFrom(&self.read_stream),
-                    else => error.Failed,
-                };
-                const extra_bits_for_dist = dist_extra_bits_table[dist_offset];
-                const copy_dist = dist_base_table[dist_offset] + try self.read_stream.readBitsNoEof(u13, extra_bits_for_dist);
+                    const dist_offset: u9 = try switch (self.current_block) {
+                        .Huffman => self.current_block.Huffman.readDistFrom(&self.read_stream),
+                        else => error.Failed,
+                    };
+                    const extra_bits_for_dist = dist_extra_bits_table[dist_offset];
+                    const copy_dist = dist_base_table[dist_offset] + try self.read_stream.readBitsNoEof(u13, extra_bits_for_dist);
 
-                //warn("copy {} offset {}\n", copy_len, copy_dist);
-                //warn("len def v={} base={} len={}\n", v, len_base_table[v-257], extra_bits_for_len);
+                    //warn("copy {} offset {}\n", copy_len, copy_dist);
+                    //warn("len def v={} base={} len={}\n", v, len_base_table[v-257], extra_bits_for_len);
 
-                try self.window.copyElementsFromEnd(copy_dist, copy_len);
-                self.bytes_to_read_from_window += copy_len;
-            } else {
-                // NOTE: 256 (end of block) does NOT appear in this layer!
-                return error.Failed;
+                    try self.window.copyElementsFromEnd(copy_dist, copy_len);
+                    self.bytes_to_read_from_window += copy_len;
+                },
+                else => return error.Failed,
             }
         }
 
