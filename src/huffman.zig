@@ -70,7 +70,7 @@ pub fn CanonicalHuffmanTree(comptime Tlen: type, comptime Tval: type, max_len: u
             //warn("{} -> {}\n", bit_width, self.symbol_ends[bit_width]);
             while (v >= self.symbol_ends[bit_width]) {
                 v <<= 1;
-                v |= @intCast(usize, try stream.readBitsNoEof(u1, 1));
+                v |= try stream.readBitsNoEof(u1, 1);
                 value_offset = self.symbol_ends[bit_width] * 2;
                 bit_width += 1;
                 //warn("{}: v={} - {} -> {} (offs={})\n", bit_width, v, value_offset, self.symbol_ends[bit_width], self.symbol_offsets[bit_width]);

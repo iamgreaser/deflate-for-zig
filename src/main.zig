@@ -37,7 +37,7 @@ pub fn main() anyerror!void {
         if (bytes_read == 0) {
             break;
         } else {
-            total_bytes_read += @intCast(usize, bytes_read);
+            total_bytes_read += bytes_read;
             var bytes_written = try write_buffered_stream.write(block_buf[0..bytes_read]);
             if (bytes_written != bytes_read) {
                 return error.Failed;

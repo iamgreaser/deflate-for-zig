@@ -78,7 +78,7 @@ pub fn BlockTree(comptime InputBitStream: type) type {
                             if (i < 1) {
                                 return error.Failed;
                             }
-                            const times: usize = 3 + @intCast(usize, try stream.readBitsNoEof(u2, 2));
+                            const times: usize = 3 + try stream.readBitsNoEof(u2, 2);
                             var j: usize = 0;
                             while (j < times) : (j += 1) {
                                 lit_table[i] = prev;
@@ -88,7 +88,7 @@ pub fn BlockTree(comptime InputBitStream: type) type {
 
                         // Repeat 0 for 3+u3 times
                         17 => {
-                            const times: usize = 3 + @intCast(usize, try stream.readBitsNoEof(u3, 3));
+                            const times: usize = 3 + try stream.readBitsNoEof(u3, 3);
                             var j: usize = 0;
                             while (j < times) : (j += 1) {
                                 lit_table[i] = 0;
@@ -98,7 +98,7 @@ pub fn BlockTree(comptime InputBitStream: type) type {
 
                         // Repeat 0 for 11+u7 times
                         18 => {
-                            const times: usize = 11 + @intCast(usize, try stream.readBitsNoEof(u7, 7));
+                            const times: usize = 11 + try stream.readBitsNoEof(u7, 7);
                             var j: usize = 0;
                             while (j < times) : (j += 1) {
                                 lit_table[i] = 0;
@@ -136,7 +136,7 @@ pub fn BlockTree(comptime InputBitStream: type) type {
                             if (i < 1) {
                                 return error.Failed;
                             }
-                            const times: usize = 3 + @intCast(usize, try stream.readBitsNoEof(u2, 2));
+                            const times: usize = 3 + try stream.readBitsNoEof(u2, 2);
                             var j: usize = 0;
                             while (j < times) : (j += 1) {
                                 dist_table[i] = prev;
@@ -146,7 +146,7 @@ pub fn BlockTree(comptime InputBitStream: type) type {
 
                         // Repeat 0 for 3+u3 times
                         17 => {
-                            const times: usize = 3 + @intCast(usize, try stream.readBitsNoEof(u3, 3));
+                            const times: usize = 3 + try stream.readBitsNoEof(u3, 3);
                             var j: usize = 0;
                             while (j < times) : (j += 1) {
                                 dist_table[i] = 0;
@@ -156,7 +156,7 @@ pub fn BlockTree(comptime InputBitStream: type) type {
 
                         // Repeat 0 for 11+u7 times
                         18 => {
-                            const times: usize = 11 + @intCast(usize, try stream.readBitsNoEof(u7, 7));
+                            const times: usize = 11 + try stream.readBitsNoEof(u7, 7);
                             var j: usize = 0;
                             while (j < times) : (j += 1) {
                                 dist_table[i] = 0;
