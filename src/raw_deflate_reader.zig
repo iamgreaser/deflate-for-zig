@@ -1,5 +1,7 @@
 // vim: set sts=4 sw=4 et :
 const std = @import("std");
+const BitInStream = std.io.BitInStream;
+const Endian = std.builtin.Endian;
 const warn = std.debug.warn;
 
 const Block = @import("./block.zig").Block;
@@ -60,26 +62,27 @@ const dist_base_table = result: {
     break :result table;
 };
 
-pub fn RawDeflateReader(comptime InputBitStream: type) type {
+pub fn RawDeflateReader(comptime InStreamType: type) type {
     return struct {
         const Self = @This();
-        const ThisBlock = Block(InputBitStream);
-        const ThisRawBlock = RawBlock(InputBitStream);
-        const ThisHuffmanBlock = HuffmanBlock(InputBitStream);
-        const ThisBlockTree = BlockTree(InputBitStream);
 
-        read_stream: *InputBitStream,
+        const BitInStreamType = BitInStream(Endian.Little, InStreamType);
+
+        const ThisBlock = Block(BitInStreamType);
+        const ThisRawBlock = RawBlock(BitInStreamType);
+        const ThisHuffmanBlock = HuffmanBlock(BitInStreamType);
+        const ThisBlockTree = BlockTree(BitInStreamType);
+
+        read_stream: BitInStreamType,
         window: DeflateSlidingWindow = DeflateSlidingWindow{},
         bytes_to_read_from_window: usize = 0,
         is_last_block: bool = false,
         current_block: ThisBlock = ThisBlock.Empty,
 
-        pub fn readFromBitStream(read_stream: *InputBitStream) Self {
-            var self = Self{
-                .read_stream = read_stream,
+        pub fn init(read_stream: InStreamType) Self {
+            return Self{
+                .read_stream = BitInStreamType.init(read_stream),
             };
-
-            return self;
         }
 
         pub fn read(self: *Self, buffer: []u8) !usize {
@@ -125,7 +128,7 @@ pub fn RawDeflateReader(comptime InputBitStream: type) type {
                 1 => true,
             };
             self.current_block = try switch (btype) {
-                0 => ThisRawBlock.fromBitStream(self.read_stream),
+                0 => ThisRawBlock.fromBitStream(&self.read_stream),
                 1 => ThisBlock{
                     .Huffman = ThisHuffmanBlock{
                         .tree = ThisBlockTree.makeStatic(),
@@ -133,7 +136,7 @@ pub fn RawDeflateReader(comptime InputBitStream: type) type {
                 },
                 2 => ThisBlock{
                     .Huffman = ThisHuffmanBlock{
-                        .tree = try ThisBlockTree.fromBitStream(self.read_stream),
+                        .tree = try ThisBlockTree.fromBitStream(&self.read_stream),
                     },
                 },
                 else => error.Failed,
@@ -144,14 +147,15 @@ pub fn RawDeflateReader(comptime InputBitStream: type) type {
             var idx: usize = self.bytes_to_read_from_window;
             var byte: u8 = try self.window.readElementFromEnd(idx);
             self.bytes_to_read_from_window -= 1;
+            //warn("{c}", .{byte});
             return byte;
         }
 
         fn readElementFromBlockDirectly(self: *Self) !u9 {
             return try switch (self.current_block) {
                 .Empty => error.EndOfBlock,
-                .Raw => self.current_block.Raw.readElementFrom(self.read_stream),
-                .Huffman => self.current_block.Huffman.readElementFrom(self.read_stream),
+                .Raw => self.current_block.Raw.readElementFrom(&self.read_stream),
+                .Huffman => self.current_block.Huffman.readElementFrom(&self.read_stream),
                 else => error.Failed,
             };
         }
@@ -177,7 +181,7 @@ pub fn RawDeflateReader(comptime InputBitStream: type) type {
                 var copy_len = len_base_table[v - 257] + try self.read_stream.readBitsNoEof(u5, extra_bits_for_len);
 
                 var dist_offset: u9 = try switch (self.current_block) {
-                    .Huffman => self.current_block.Huffman.readDistFrom(self.read_stream),
+                    .Huffman => self.current_block.Huffman.readDistFrom(&self.read_stream),
                     else => error.Failed,
                 };
                 var extra_bits_for_dist = dist_extra_bits_table[dist_offset];

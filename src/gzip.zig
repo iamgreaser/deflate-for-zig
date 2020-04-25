@@ -5,34 +5,32 @@ const warn = std.debug.warn;
 
 const RawDeflateReader = @import("./raw_deflate_reader.zig").RawDeflateReader;
 
-pub fn GZipReader(comptime InputBitStream: type) type {
+pub fn GZipReader(comptime InStreamType: type) type {
     return struct {
         const Self = @This();
 
-        const ThisRawDeflateReader = RawDeflateReader(InputBitStream);
+        const RawDeflateReaderType = RawDeflateReader(InStreamType);
 
         crc: Crc32 = Crc32.init(),
         bytes_accumulated: usize = 0,
         did_read_footer: bool = false,
 
-        raw_deflate_reader: ThisRawDeflateReader,
-        read_stream: *InputBitStream,
+        raw_deflate_reader: RawDeflateReaderType,
+        read_stream: InStreamType,
 
-        pub fn readFromBitStream(read_stream: *InputBitStream) !Self {
-            // TODO: Actually read stuff from the header
-            try Self.readGZipHeader(read_stream);
-
-            var raw_deflate_reader = ThisRawDeflateReader.readFromBitStream(read_stream);
-
+        pub fn init(read_stream: InStreamType) !Self {
+            var raw_deflate_reader = RawDeflateReaderType.init(read_stream);
             var self = Self{
-                .raw_deflate_reader = raw_deflate_reader,
                 .read_stream = read_stream,
+                .raw_deflate_reader = raw_deflate_reader,
             };
-
+            try self.readGZipHeader();
             return self;
         }
 
-        fn readGZipHeader(read_stream: var) !void {
+        fn readGZipHeader(self: *Self) !void {
+            var read_stream = self.read_stream;
+
             // GZip fields are in Little-Endian.
             // FTEXT: File is probably ASCII text (not relevant)
             const FTEXT = 0x01;
@@ -49,9 +47,9 @@ pub fn GZipReader(comptime InputBitStream: type) type {
             const VALID_FLAGS = FTEXT | FHCRC | FEXTRA | FNAME | FCOMMENT;
 
             // GZip header magic number
-            var magic0: u8 = try read_stream.readBitsNoEof(u8, 8);
-            var magic1: u8 = try read_stream.readBitsNoEof(u8, 8);
-            var magic2: u8 = try read_stream.readBitsNoEof(u8, 8);
+            var magic0: u8 = try read_stream.readIntLittle(u8);
+            var magic1: u8 = try read_stream.readIntLittle(u8);
+            var magic2: u8 = try read_stream.readIntLittle(u8);
             if (magic0 != 0x1F) {
                 return error.Failed;
             }
@@ -65,24 +63,24 @@ pub fn GZipReader(comptime InputBitStream: type) type {
             }
 
             // Flags
-            const flags: u8 = try read_stream.readBitsNoEof(u8, 8);
+            const flags: u8 = try read_stream.readIntLittle(u8);
 
             // Modification time
-            const mtime: u32 = try read_stream.readBitsNoEof(u32, 32);
+            const mtime: u32 = try read_stream.readIntLittle(u32);
 
             // eXtra FLags
-            const xfl: u8 = try read_stream.readBitsNoEof(u8, 8);
+            const xfl: u8 = try read_stream.readIntLittle(u8);
 
             // Operating System used
-            const gzip_os: u8 = try read_stream.readBitsNoEof(u8, 8);
+            const gzip_os: u8 = try read_stream.readIntLittle(u8);
 
             // FEXTRA if present
             if ((flags & FEXTRA) != 0) {
                 // TODO: Parse if relevant
-                var fextra_len: u16 = try read_stream.readBitsNoEof(u16, 16);
+                var fextra_len: u16 = try read_stream.readIntLittle(u16);
                 var i: usize = 0;
                 while (i < fextra_len) : (i += 1) {
-                    _ = try read_stream.readBitsNoEof(u8, 8);
+                    _ = try read_stream.readIntLittle(u8);
                 }
             }
 
@@ -92,7 +90,7 @@ pub fn GZipReader(comptime InputBitStream: type) type {
                 warn("original file name: \"", .{});
                 // Skip until NUL
                 while (true) {
-                    fname_buf[0] = try read_stream.readBitsNoEof(u8, 8);
+                    fname_buf[0] = try read_stream.readIntLittle(u8);
                     if (fname_buf[0] == 0) {
                         break;
                     }
@@ -106,7 +104,7 @@ pub fn GZipReader(comptime InputBitStream: type) type {
                 var fcomment_buf = [_]u8{0} ** 1;
                 // Skip until NUL
                 while (true) {
-                    fcomment_buf[0] = try read_stream.readBitsNoEof(u8, 8);
+                    fcomment_buf[0] = try read_stream.readIntLittle(u8);
                     if (fcomment_buf[0] == 0) {
                         break;
                     }
@@ -116,7 +114,7 @@ pub fn GZipReader(comptime InputBitStream: type) type {
             // FHCRC if present
             if ((flags & FHCRC) != 0) {
                 warn("Has 16-bit header CRC\n", .{});
-                _ = try read_stream.readBitsNoEof(u16, 16);
+                _ = try read_stream.readIntLittle(u16);
             }
         }
 
@@ -134,10 +132,10 @@ pub fn GZipReader(comptime InputBitStream: type) type {
             if (bytes_just_read == 0) {
                 if (!self.did_read_footer) {
                     self.did_read_footer = true;
-                    self.read_stream.alignToByte();
+                    //self.read_bit_stream.alignToByte();
                     var crc_finished: u32 = self.crc.final();
-                    var crc_expected: u32 = try self.read_stream.readBitsNoEof(u32, 32);
-                    var bytes_expected: u32 = try self.read_stream.readBitsNoEof(u32, 32);
+                    var crc_expected: u32 = try self.read_stream.readIntLittle(u32);
+                    var bytes_expected: u32 = try self.read_stream.readIntLittle(u32);
 
                     if (crc_finished != crc_expected) {
                         warn("CRC mismatch: got {}, expected {}\n", .{ crc_finished, crc_expected });

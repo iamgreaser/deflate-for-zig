@@ -35,8 +35,8 @@ pub fn main() anyerror!void {
                 .unbuffered_in_stream = read_raw_stream,
             }; // TODO: find or propose a cleaner way to build a BufferedInStream --GM
             var read_buffered_stream = read_buffered.inStream();
-            var read_bit_stream = InputBitStream.init(read_buffered_stream);
-            var gzip = try GZipReader(InputBitStream).readFromBitStream(&read_bit_stream);
+            var gzip = try GZipReader(InputBitStreamBacking.InStream).init(read_buffered_stream);
+            //var gzip = try GZipReader(File.InStream).init(read_raw_stream);
 
             var total_bytes_read: usize = 0;
             while (true) {
