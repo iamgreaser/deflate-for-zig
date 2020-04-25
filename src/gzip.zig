@@ -47,9 +47,8 @@ pub fn GZipReader(comptime InStreamType: type) type {
             const VALID_FLAGS = FTEXT | FHCRC | FEXTRA | FNAME | FCOMMENT;
 
             // GZip header magic number
-            const magic0: u8 = try read_stream.readIntLittle(u8);
-            const magic1: u8 = try read_stream.readIntLittle(u8);
-            const magic2: u8 = try read_stream.readIntLittle(u8);
+            const magic0: u8 = try read_stream.readByte();
+            const magic1: u8 = try read_stream.readByte();
             if (magic0 != 0x1F) {
                 return error.Failed;
             }
@@ -58,57 +57,46 @@ pub fn GZipReader(comptime InStreamType: type) type {
             }
 
             // Compression method: 0x08 = deflate
+            const magic2: u8 = try read_stream.readByte();
             if (magic2 != 0x08) {
                 return error.Failed;
             }
 
             // Flags
-            const flags: u8 = try read_stream.readIntLittle(u8);
+            const flags: u8 = try read_stream.readByte();
 
             // Modification time
             const mtime: u32 = try read_stream.readIntLittle(u32);
 
             // eXtra FLags
-            const xfl: u8 = try read_stream.readIntLittle(u8);
+            const xfl: u8 = try read_stream.readByte();
 
             // Operating System used
-            const gzip_os: u8 = try read_stream.readIntLittle(u8);
+            const gzip_os: u8 = try read_stream.readByte();
 
             // FEXTRA if present
             if ((flags & FEXTRA) != 0) {
-                // TODO: Parse if relevant
                 const fextra_len: u16 = try read_stream.readIntLittle(u16);
-                var i: usize = 0;
-                while (i < fextra_len) : (i += 1) {
-                    _ = try read_stream.readIntLittle(u8);
-                }
+                // TODO: Parse if relevant
+                try read_stream.skipBytes(fextra_len);
             }
 
             // FNAME if present
             if ((flags & FNAME) != 0) {
-                var fname_buf = [_]u8{0} ** 1;
                 warn("original file name: \"", .{});
-                // Skip until NUL
                 while (true) {
-                    fname_buf[0] = try read_stream.readIntLittle(u8);
-                    if (fname_buf[0] == 0) {
+                    const char = try read_stream.readByte();
+                    if (char == 0) {
                         break;
                     }
-                    warn("{}", .{fname_buf[0..1]});
+                    warn("{c}", .{char});
                 }
                 warn("\"\n", .{});
             }
 
             // FCOMMENT if present
             if ((flags & FCOMMENT) != 0) {
-                var fcomment_buf = [_]u8{0} ** 1;
-                // Skip until NUL
-                while (true) {
-                    fcomment_buf[0] = try read_stream.readIntLittle(u8);
-                    if (fcomment_buf[0] == 0) {
-                        break;
-                    }
-                }
+                try read_stream.skipUntilDelimiterOrEof(0);
             }
 
             // FHCRC if present
