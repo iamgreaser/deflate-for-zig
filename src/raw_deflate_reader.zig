@@ -89,8 +89,6 @@ pub fn RawDeflateReader(comptime InStreamType: type) type {
         pub fn read(self: *Self, buffer: []u8) !usize {
             var i: usize = 0;
             while (i < buffer.len) {
-                var j: usize = 0;
-
                 var bytes_read = self.readBytes(buffer[i..]) catch |err| {
                     if (err == error.EndOfStream) {
                         return i;
@@ -144,14 +142,9 @@ pub fn RawDeflateReader(comptime InStreamType: type) type {
             };
         }
 
-        fn readBytesFromWindow(self: *Self, bytes: []u8) !usize {
-            var num_bytes_read = min(self.bytes_to_read_from_window, bytes.len);
-            var i: usize = 0;
-            while (i < num_bytes_read) : (i += 1) {
-                var byte: u8 = try self.window.readElementFromEnd(self.bytes_to_read_from_window);
-                self.bytes_to_read_from_window -= 1;
-                bytes[i] = byte;
-            }
+        fn readBytesFromWindow(self: *Self, buffer: []u8) !usize {
+            var num_bytes_read = try self.window.readElementsFromEnd(buffer, self.bytes_to_read_from_window);
+            self.bytes_to_read_from_window -= num_bytes_read;
             //warn("{c}", .{byte});
             return num_bytes_read;
         }
@@ -203,11 +196,11 @@ pub fn RawDeflateReader(comptime InStreamType: type) type {
             }
         }
 
-        fn readBytes(self: *Self, bytes: []u8) !usize {
+        fn readBytes(self: *Self, buffer: []u8) !usize {
             // Do we have bytes to read from the window?
             if (self.bytes_to_read_from_window >= 1) {
                 // Yes - read from there first.
-                return try self.readBytesFromWindow(bytes);
+                return try self.readBytesFromWindow(buffer);
             }
 
             var v: u9 = try self.readElementFromBlock();
@@ -215,7 +208,7 @@ pub fn RawDeflateReader(comptime InStreamType: type) type {
 
             // At this point we should have something in the window.
             // If not, well, enjoy your runtime error.
-            return try self.readBytesFromWindow(bytes);
+            return try self.readBytesFromWindow(buffer);
         }
     };
 }

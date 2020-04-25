@@ -1,6 +1,7 @@
 // vim: set sts=4 sw=4 et :
 const std = @import("std");
 const max = std.math.max;
+const min = std.math.min;
 const warn = std.debug.warn;
 
 /// Fixed-length element sliding window.
@@ -42,6 +43,31 @@ pub fn SlidingWindow(comptime Element: type, window_length: usize) type {
             // We survived, so return the element
             var idx = ((self.write_index + window_length) - offset) % window_length;
             return self.elements[idx];
+        }
+
+        /// Given an offset from the element immediately past the end
+        /// of the sliding window, and an array to fill in, read the
+        /// elements from that point at that point.
+        ///
+        /// Returns the number of elements actually read.
+        pub fn readElementsFromEnd(self: *Self, buffer: []Element, offset: usize) !usize {
+            // Guard against trying to read back through the window
+            if (offset > self.current_window_length) {
+                return error.IndexOutOfRange;
+            }
+
+            var elements_to_read = min(offset, buffer.len);
+            var i: usize = 0;
+            var idx = ((self.write_index + window_length) - offset) % window_length;
+            while (i < elements_to_read) : (i += 1) {
+                buffer[i] = self.elements[idx];
+                idx += 1;
+                if (idx == window_length) {
+                    idx = 0;
+                }
+            }
+
+            return elements_to_read;
         }
 
         /// Copies multiple elements from the end of the sliding window
