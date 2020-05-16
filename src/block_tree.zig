@@ -16,10 +16,10 @@ pub fn BlockTree(comptime InputBitStream: type) type {
             // zig fmt: off
             const lit_table = (([_]u4{8} ** (144 - 0)) ++ ([_]u4{9} ** (256 - 144)) ++ ([_]u4{7} ** (280 - 256)) ++ ([_]u4{8} ** (288 - 280)));
             // zig fmt: on
-            var lit_tree = CanonicalHuffmanTree(u4, u9, 31 + 257).fromLengths(&lit_table);
+            const lit_tree = CanonicalHuffmanTree(u4, u9, 31 + 257).fromLengths(&lit_table);
 
             const dist_table = [_]u4{5} ** 32;
-            var dist_tree = CanonicalHuffmanTree(u4, u5, 31 + 1).fromLengths(&dist_table);
+            const dist_tree = CanonicalHuffmanTree(u4, u5, 31 + 1).fromLengths(&dist_table);
 
             return Self{
                 .lit_tree = lit_tree,
@@ -28,14 +28,14 @@ pub fn BlockTree(comptime InputBitStream: type) type {
         }
 
         pub fn fromBitStream(stream: *InputBitStream) !Self {
-            var raw_hlit: u5 = try stream.readBitsNoEof(u5, 5);
-            var raw_hdist: u5 = try stream.readBitsNoEof(u5, 5);
-            var raw_hclen: u4 = try stream.readBitsNoEof(u4, 4);
+            const raw_hlit: u5 = try stream.readBitsNoEof(u5, 5);
+            const raw_hdist: u5 = try stream.readBitsNoEof(u5, 5);
+            const raw_hclen: u4 = try stream.readBitsNoEof(u4, 4);
 
             // Convert to their real values
-            var real_hclen: u5 = @intCast(u5, raw_hclen) + 4;
-            var real_hdist: u6 = @intCast(u6, raw_hdist) + 1;
-            var real_hlit: u9 = @intCast(u9, raw_hlit) + 257;
+            const real_hclen: u5 = @intCast(u5, raw_hclen) + 4;
+            const real_hdist: u6 = @intCast(u6, raw_hdist) + 1;
+            const real_hlit: u9 = @intCast(u9, raw_hlit) + 257;
             //warn("HLIT  = {} -> {}\n", raw_hlit,  real_hlit);
             //warn("HDIST = {} -> {}\n", raw_hdist, real_hdist);
             //warn("HCLEN = {} -> {}\n", raw_hclen, real_hclen);
@@ -52,8 +52,8 @@ pub fn BlockTree(comptime InputBitStream: type) type {
             {
                 var i: u5 = 0;
                 while (i < real_hclen) : (i += 1) {
-                    var k: u5 = clen_remap[i];
-                    var v: u3 = try stream.readBitsNoEof(u3, 3);
+                    const k: u5 = clen_remap[i];
+                    const v: u3 = try stream.readBitsNoEof(u3, 3);
                     clen_table[k] = v;
                     //warn("clen {} = {}\n", k, v);
                 }
@@ -68,7 +68,7 @@ pub fn BlockTree(comptime InputBitStream: type) type {
                 var i: u9 = 0;
                 var prev: u4 = undefined;
                 while (i < real_hlit) {
-                    var v: u5 = try clen_tree.readFrom(stream);
+                    const v: u5 = try clen_tree.readFrom(stream);
                     //warn("hlit {} = {}\n", i, v);
 
                     switch (v) {
@@ -78,7 +78,7 @@ pub fn BlockTree(comptime InputBitStream: type) type {
                             if (i < 1) {
                                 return error.Failed;
                             }
-                            var times: usize = 3 + @intCast(usize, try stream.readBitsNoEof(u2, 2));
+                            const times: usize = 3 + try stream.readBitsNoEof(u2, 2);
                             var j: usize = 0;
                             while (j < times) : (j += 1) {
                                 lit_table[i] = prev;
@@ -88,7 +88,7 @@ pub fn BlockTree(comptime InputBitStream: type) type {
 
                         // Repeat 0 for 3+u3 times
                         17 => {
-                            var times: usize = 3 + @intCast(usize, try stream.readBitsNoEof(u3, 3));
+                            const times: usize = 3 + try stream.readBitsNoEof(u3, 3);
                             var j: usize = 0;
                             while (j < times) : (j += 1) {
                                 lit_table[i] = 0;
@@ -98,7 +98,7 @@ pub fn BlockTree(comptime InputBitStream: type) type {
 
                         // Repeat 0 for 11+u7 times
                         18 => {
-                            var times: usize = 11 + @intCast(usize, try stream.readBitsNoEof(u7, 7));
+                            const times: usize = 11 + try stream.readBitsNoEof(u7, 7);
                             var j: usize = 0;
                             while (j < times) : (j += 1) {
                                 lit_table[i] = 0;
@@ -116,7 +116,7 @@ pub fn BlockTree(comptime InputBitStream: type) type {
             }
 
             // Build another canonical huffman tree
-            var lit_tree = CanonicalHuffmanTree(u4, u9, 31 + 257).fromLengths(&lit_table);
+            const lit_tree = CanonicalHuffmanTree(u4, u9, 31 + 257).fromLengths(&lit_table);
 
             // TODO: NOT COPY-PASTE THE ABOVE
 
@@ -126,7 +126,7 @@ pub fn BlockTree(comptime InputBitStream: type) type {
                 var i: u6 = 0;
                 var prev: u4 = undefined;
                 while (i < real_hdist) {
-                    var v: u5 = try clen_tree.readFrom(stream);
+                    const v: u5 = try clen_tree.readFrom(stream);
                     //warn("hdist {} = {}\n", i, v);
 
                     switch (v) {
@@ -136,7 +136,7 @@ pub fn BlockTree(comptime InputBitStream: type) type {
                             if (i < 1) {
                                 return error.Failed;
                             }
-                            var times: usize = 3 + @intCast(usize, try stream.readBitsNoEof(u2, 2));
+                            const times: usize = 3 + try stream.readBitsNoEof(u2, 2);
                             var j: usize = 0;
                             while (j < times) : (j += 1) {
                                 dist_table[i] = prev;
@@ -146,7 +146,7 @@ pub fn BlockTree(comptime InputBitStream: type) type {
 
                         // Repeat 0 for 3+u3 times
                         17 => {
-                            var times: usize = 3 + @intCast(usize, try stream.readBitsNoEof(u3, 3));
+                            const times: usize = 3 + try stream.readBitsNoEof(u3, 3);
                             var j: usize = 0;
                             while (j < times) : (j += 1) {
                                 dist_table[i] = 0;
@@ -156,7 +156,7 @@ pub fn BlockTree(comptime InputBitStream: type) type {
 
                         // Repeat 0 for 11+u7 times
                         18 => {
-                            var times: usize = 11 + @intCast(usize, try stream.readBitsNoEof(u7, 7));
+                            const times: usize = 11 + try stream.readBitsNoEof(u7, 7);
                             var j: usize = 0;
                             while (j < times) : (j += 1) {
                                 dist_table[i] = 0;
@@ -174,7 +174,7 @@ pub fn BlockTree(comptime InputBitStream: type) type {
             }
 
             // Build another canonical huffman tree
-            var dist_tree = CanonicalHuffmanTree(u4, u5, 31 + 1).fromLengths(&dist_table);
+            const dist_tree = CanonicalHuffmanTree(u4, u5, 31 + 1).fromLengths(&dist_table);
 
             return Self{
                 .lit_tree = lit_tree,

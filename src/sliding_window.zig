@@ -41,7 +41,7 @@ pub fn SlidingWindow(comptime Element: type, window_length: usize) type {
             }
 
             // We survived, so return the element
-            var idx = ((self.write_index + window_length) - offset) % window_length;
+            const idx = ((self.write_index + window_length) - offset) % window_length;
             return self.elements[idx];
         }
 
@@ -56,16 +56,16 @@ pub fn SlidingWindow(comptime Element: type, window_length: usize) type {
                 return error.IndexOutOfRange;
             }
 
-            var elements_to_read = min(offset, buffer.len);
+            const elements_to_read = min(offset, buffer.len);
             var i: usize = 0;
-            var beg_idx = ((self.write_index + window_length) - offset) % window_length;
-            var end_idx = beg_idx + elements_to_read;
+            const beg_idx = ((self.write_index + window_length) - offset) % window_length;
+            const end_idx = beg_idx + elements_to_read;
 
             // Do we need to split this into 2 copies?
             if (end_idx > window_length) {
                 // Yes - do 2 copies.
-                var block_1_length = window_length - beg_idx;
-                var block_2_length = elements_to_read - block_1_length;
+                const block_1_length = window_length - beg_idx;
+                const block_2_length = elements_to_read - block_1_length;
                 std.mem.copy(Element, buffer[0..block_1_length], self.elements[beg_idx..]);
                 std.mem.copy(Element, buffer[block_1_length..], self.elements[0..block_2_length]);
             } else {
