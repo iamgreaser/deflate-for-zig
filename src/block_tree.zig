@@ -8,18 +8,20 @@ pub fn BlockTree(comptime InputBitStream: type) type {
     return struct {
         const Self = @This();
 
-        lit_tree: CanonicalHuffmanTree(u4, u9, 31 + 257),
-        dist_tree: CanonicalHuffmanTree(u4, u6, 31 + 1),
+        pub const TLitTree = CanonicalHuffmanTree(u4, 31 + 257);
+        pub const TDistTree = CanonicalHuffmanTree(u4, 31 + 1);
+        lit_tree: TLitTree,
+        dist_tree: TDistTree,
 
         pub fn makeStatic() Self {
             // FIXME: zig fmt seems to ignore these comments --GM
             // zig fmt: off
             const lit_table = (([_]u4{8} ** (144 - 0)) ++ ([_]u4{9} ** (256 - 144)) ++ ([_]u4{7} ** (280 - 256)) ++ ([_]u4{8} ** (288 - 280)));
             // zig fmt: on
-            const lit_tree = CanonicalHuffmanTree(u4, u9, 31 + 257).fromLengths(&lit_table);
+            const lit_tree = CanonicalHuffmanTree(u4, 31 + 257).fromLengths(&lit_table);
 
             const dist_table = [_]u4{5} ** 32;
-            const dist_tree = CanonicalHuffmanTree(u4, u6, 31 + 1).fromLengths(&dist_table);
+            const dist_tree = CanonicalHuffmanTree(u4, 31 + 1).fromLengths(&dist_table);
 
             return Self{
                 .lit_tree = lit_tree,
@@ -60,7 +62,7 @@ pub fn BlockTree(comptime InputBitStream: type) type {
             }
 
             // Build a canonical huffman tree
-            const clen_tree = CanonicalHuffmanTree(u3, u5, 15 + 4).fromLengths(&clen_table);
+            const clen_tree = CanonicalHuffmanTree(u3, 15 + 4).fromLengths(&clen_table);
 
             // Build the other trees
             const lit_tree = try buildDeflateHuffmanTree(u9, 31 + 257, real_hlit, &clen_tree, stream);
@@ -72,15 +74,15 @@ pub fn BlockTree(comptime InputBitStream: type) type {
             };
         }
 
-        pub fn readLitFrom(self: *Self, stream: *InputBitStream) !u9 {
+        pub fn readLitFrom(self: *Self, stream: *InputBitStream) !(TLitTree.Tval) {
             return try self.lit_tree.readFrom(stream);
         }
 
-        pub fn readDistFrom(self: *Self, stream: *InputBitStream) !u6 {
+        pub fn readDistFrom(self: *Self, stream: *InputBitStream) !(TDistTree.Tval) {
             return try self.dist_tree.readFrom(stream);
         }
 
-        fn buildDeflateHuffmanTree(comptime Tval: type, comptime max_len: Tval, actual_len: Tval, clen_tree: *const CanonicalHuffmanTree(u3, u5, 15 + 4), stream: *InputBitStream) !CanonicalHuffmanTree(u4, Tval, max_len) {
+        fn buildDeflateHuffmanTree(comptime Tval: type, comptime max_len: Tval, actual_len: Tval, clen_tree: *const CanonicalHuffmanTree(u3, 15 + 4), stream: *InputBitStream) !CanonicalHuffmanTree(u4, max_len) {
             // Read tree lengths
             var table: [max_len]u4 = [_]u4{0} ** (max_len);
             {
@@ -135,7 +137,7 @@ pub fn BlockTree(comptime InputBitStream: type) type {
             }
 
             // Build a canonical huffman tree
-            return CanonicalHuffmanTree(u4, Tval, max_len).fromLengths(&table);
+            return CanonicalHuffmanTree(u4, max_len).fromLengths(&table);
         }
     };
 }

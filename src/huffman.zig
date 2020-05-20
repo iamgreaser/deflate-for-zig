@@ -1,13 +1,21 @@
 // vim: set sts=4 sw=4 et :
 const std = @import("std");
+const TypeInfo = std.builtin.TypeInfo;
 const warn = std.debug.warn;
 
-pub fn CanonicalHuffmanTree(comptime Tlen: type, comptime Tval: type, max_len: usize) type {
-    const Tkey: type = usize;
-    const bit_width_count: usize = (1 << @typeInfo(Tlen).Int.bits);
-    const Tmask: type = usize;
+pub fn CanonicalHuffmanTree(comptime Tlen: type, max_len: usize) type {
     return struct {
         const Self = @This();
+
+        pub const Tval: type = @Type(TypeInfo{
+            .Int = .{
+                .is_signed = false,
+                .bits = @floatToInt(comptime_int, @ceil(@log2(@intToFloat(f64, max_len)))),
+            },
+        });
+        const Tkey: type = usize;
+        const bit_width_count: usize = (1 << @typeInfo(Tlen).Int.bits);
+        const Tmask: type = usize;
 
         // Number of symbols that are actually in the tree.
         symbol_count: Tkey,

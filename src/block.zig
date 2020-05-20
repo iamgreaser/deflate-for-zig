@@ -58,7 +58,7 @@ pub fn HuffmanBlock(comptime InputBitStream: type) type {
             }
         }
 
-        pub fn readDistFrom(self: *Self, stream: *InputBitStream) !u9 {
+        pub fn readDistFrom(self: *Self, stream: *InputBitStream) !u5 {
             return try self.tree.readDistFrom(stream);
         }
     };
