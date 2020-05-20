@@ -60,7 +60,7 @@ pub fn CanonicalHuffmanTree(comptime Tlen: type, comptime Tval: type, max_len: u
             };
         }
 
-        pub fn readFrom(self: *Self, stream: var) !Tval {
+        pub fn readFrom(self: *const Self, stream: var) !Tval {
             var v: usize = 0;
 
             // Calculate the bit width and offset
